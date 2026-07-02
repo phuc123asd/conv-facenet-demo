@@ -1,0 +1,9 @@
+export { DashboardPanel } from "./panels/DashboardPanel";
+export { EmployeePanel } from "./panels/EmployeePanel";
+export { ShiftPanel } from "./panels/ShiftPanel";
+export { ApprovalPanel } from "./panels/ApprovalPanel";
+export { HistoryPanel } from "./panels/HistoryPanel";
+export { ReportPanel } from "./panels/ReportPanel";
+export { DevicePanel } from "./panels/DevicePanel";
+export { AuditPanel } from "./panels/AuditPanel";
+export { SettingsPanel } from "./panels/SettingsPanel";

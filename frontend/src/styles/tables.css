@@ -1,0 +1,18 @@
+/* ─── DARK TABLE ─── */
+
+.dark-table { overflow: hidden; border-radius: 24px; background: #111113; color: white; box-shadow: 0 24px 70px -40px rgba(0, 0, 0, 0.75); }
+.dark-table .eyebrow, .dark-table .table-head, .dark-table .table-tools, .dark-table select { color: rgba(255, 255, 255, 0.62); }
+.dark-table .badge.good { background: rgba(52, 199, 89, 0.18); color: #50e58c; }
+
+.table-header { padding: 22px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+.table-tools { display: flex; flex-wrap: wrap; gap: 10px; }
+.table-tools input, .table-tools select { min-height: 42px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 14px; background: rgba(255, 255, 255, 0.07); padding: 0 12px; }
+.table-button { box-shadow: none; background: rgba(255, 255, 255, 0.14); color: white; }
+
+.attendance-table { display: grid; }
+.table-row { display: grid; grid-template-columns: 1.3fr 0.7fr 0.7fr 0.7fr 0.8fr 0.5fr; gap: 14px; align-items: center; min-height: 62px; padding: 0 22px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); transition: background-color 0.2s ease, transform 0.2s ease; }
+.table-row:not(.table-head):hover { background: rgba(255, 255, 255, 0.055); transform: translateX(3px); }
+.table-head { min-height: 48px; font-size: 12px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+.row-actions { display: inline-flex; gap: 8px; }
+.row-actions button { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 10px; background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.72); transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease; }
+.row-actions button:hover { background: rgba(255, 255, 255, 0.16); color: white; transform: translateY(-1px) scale(1.05); }

@@ -1,42 +1,44 @@
-# Face Attendance System
+# Hệ Thống Điểm Danh Bằng Khuôn Mặt (Face Attendance System)
 
-Du an gom web diem danh, backend API va module nhan dien guong mat Conv-FaceNet.
+Dự án gồm ứng dụng web điểm danh, backend API và module nhận diện khuôn mặt Conv-FaceNet.
 
-## Cau Truc
+## Cấu Trúc Dự Án
 
 ```text
 .
-├── frontend/                 # React + Vite: Kiosk va Admin Portal
-├── backend/                  # FastAPI: nghiep vu diem danh va API nhan dien
+├── frontend/                 # React + Vite: Kiosk và Admin Portal
+├── backend/                  # FastAPI: nghiệp vụ điểm danh và API nhận diện
 │   └── app/
-│       ├── api/              # Route API
-│       ├── services/         # Ket noi face engine, database, attendance logic
+│       ├── api/              # Các route API
+│       ├── services/         # Kết nối face engine, cơ sở dữ liệu, logic điểm danh
 │       └── main.py
 ├── face-service/
-│   └── conv-facenet/         # Thu vien/model nhan dien guong mat hien co
+│   └── conv-facenet/         # Thư viện/model nhận diện khuôn mặt hiện tại
 ├── database/
 │   └── supabase/             # Migration SQL cho Supabase/PostgreSQL
-└── work/                     # Cache/tooling local
+└── work/                     # Cache và các công cụ (tooling) local
 ```
 
-## Vai Tro Tung Phan
+## Vai Trò Từng Phần
 
-- `frontend/`: giao dien kiosk check-in, admin, nhan vien, ca lam, bao cao.
-- `backend/`: API trung gian cho frontend, xu ly nghiep vu, goi model nhan dien.
-- `face-service/conv-facenet/`: code model Conv-FaceNet, detector, descriptor, weights.
-- `database/supabase/`: schema cloud database cho nhan vien, diem danh, ca lam, kiosk, audit log.
+- `frontend/`: Giao diện dành cho kiosk check-in, quản trị viên (admin), nhân viên, quản lý ca làm và báo cáo.
+- `backend/`: API trung gian kết nối frontend, xử lý nghiệp vụ và gọi model nhận diện khuôn mặt.
+- `face-service/conv-facenet/`: Mã nguồn của model Conv-FaceNet, bao gồm bộ phát hiện (detector), bộ trích xuất đặc trưng (descriptor), và trọng số model (weights).
+- `database/supabase/`: Schema cơ sở dữ liệu cloud quản lý nhân viên, thông tin điểm danh, ca làm việc, thiết bị kiosk và nhật ký hệ thống (audit log).
 
-## Luong Xu Ly
+## Luồng Xử Lý
 
 ```text
 Frontend React
   -> Backend FastAPI
-  -> face-service/conv-facenet
-  -> Supabase PostgreSQL
-  -> Supabase Storage
+  -> face-service/conv-facenet (Xử lý nhận diện)
+  -> Supabase PostgreSQL (Truy vấn / Lưu trữ dữ liệu)
+  -> Supabase Storage (Lưu trữ ảnh check-in)
 ```
 
-## Chay Frontend
+## Chạy Frontend
+
+Chạy các lệnh sau trong thư mục `frontend`:
 
 ```bash
 cd frontend
@@ -44,13 +46,15 @@ npm install
 npm run dev
 ```
 
-Mac dinh web chay tai:
+Mặc định, ứng dụng web sẽ chạy tại:
 
 ```text
 http://127.0.0.1:5173/
 ```
 
-## Chay Backend
+## Chạy Backend
+
+Chạy các lệnh sau để thiết lập môi trường ảo và khởi chạy backend FastAPI:
 
 ```bash
 cd backend
@@ -61,34 +65,32 @@ pip install -r ../face-service/conv-facenet/requirements.txt
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Kiem tra backend:
+Kiểm tra trạng thái backend:
 
-```text
-GET http://127.0.0.1:8000/health
-POST http://127.0.0.1:8000/face/verify
-POST http://127.0.0.1:8000/face/embedding
-```
+- Kiểm tra sức khỏe hệ thống: `GET http://127.0.0.1:8000/health`
+- Đối sánh hai khuôn mặt: `POST http://127.0.0.1:8000/face/verify`
+- Trích xuất đặc trưng khuôn mặt: `POST http://127.0.0.1:8000/face/embedding`
 
-## Database
+## Cơ Sở Dữ Liệu (Database)
 
-Migration Supabase nam tai:
+Các file cấu hình migration của Supabase được đặt tại:
 
 ```text
 database/supabase/001_initial_schema.sql
 ```
 
-Bang chinh:
+Các bảng dữ liệu chính bao gồm:
 
-- `employees`
-- `face_profiles`
-- `work_shifts`
-- `shift_assignments`
-- `kiosk_devices`
-- `attendance_records`
-- `attendance_adjustment_requests`
-- `spoofing_alerts`
-- `audit_logs`
+- `employees` (Thông tin nhân viên)
+- `face_profiles` (Thông tin vector khuôn mặt)
+- `work_shifts` (Ca làm việc)
+- `shift_assignments` (Phân ca làm việc)
+- `kiosk_devices` (Thiết bị Kiosk đăng ký)
+- `attendance_records` (Lịch sử điểm danh)
+- `attendance_adjustment_requests` (Yêu cầu điều chỉnh công)
+- `spoofing_alerts` (Cảnh báo giả mạo)
+- `audit_logs` (Nhật ký hoạt động hệ thống)
 
-## Ghi Chu
+## Ghi Chú
 
-`conv-facenet` hien la package Python doc lap. Backend them `face-service/conv-facenet/src` vao import path va chay model tu thu muc `face-service/conv-facenet` de cac duong dan weights cu van hoat dong.
+`conv-facenet` hiện đang hoạt động như một package Python độc lập. Để các đường dẫn chứa trọng số (weights) cũ hoạt động chính xác, Backend sẽ thêm đường dẫn `face-service/conv-facenet/src` vào import path của hệ thống và chạy model trực tiếp từ thư mục `face-service/conv-facenet`.

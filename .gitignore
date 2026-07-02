@@ -21,6 +21,8 @@ work/
 # Environment
 .env
 .env.*
+!.env.example
+!backend/.env.example
 
 # Large/generated model artifacts
 face-service/conv-facenet/conv_facenet.egg-info/

@@ -1,173 +1,168 @@
-# conv-facenet
-- using conv-next as base model for face recognition with pytorch
-- the model trained on CelebFaces large-scale face dataset with more than 200K celebrity images 
-- model  accuracy on CelebA dataset about 93.6% and on Labeled faces in the wild (LFW) 95.8%
-- all src code for the model for direct usage exits in [src/convfacenet](src/convfacenet)
+# Conv-FaceNet
+- Sử dụng ConvNeXt làm mô hình cơ sở (base model) cho nhận diện khuôn mặt với PyTorch.
+- Mô hình được huấn luyện trên tập dữ liệu CelebFaces quy mô lớn với hơn 200.000 hình ảnh của người nổi tiếng.
+- Độ chính xác của mô hình trên tập dữ liệu CelebA đạt khoảng 93.6% và trên tập Labeled Faces in the Wild (LFW) đạt 95.8%.
+- Tất cả mã nguồn của mô hình phục vụ cho việc sử dụng trực tiếp nằm tại thư mục [src/convfacenet](src/convfacenet).
 
+# Hướng dẫn sử dụng mô hình trực tiếp
+- Bạn có thể cài đặt mô hình này vào dự án của mình và sử dụng trực tiếp bộ phát hiện (detector) + bộ trích xuất đặc trưng (descriptor) để thực hiện trích xuất vector đặc trưng, đối khớp khuôn mặt và phát hiện/cắt ảnh khuôn mặt.
 
-# model direct usage
-- you can install the model in your project and use it directly the detector + descriptor for feature extraction and verification and face detection and extraction
-
-- `pip install git+https://github.com/ahmedbadr97/conv-facenet`
-``` python
+- Cài đặt thông qua git:
+  `pip install git+https://github.com/ahmedbadr97/conv-facenet`
+  
+```python
 import convfacenet
-# you can extract faces features from photo
-img=convfacenet.load_image(img_path)
-faces_feature_list=convfacenet.faces_features(img)
 
-# ___ get croped aligned faces images from image ___
+# Bạn có thể trích xuất các đặc trưng khuôn mặt từ một bức ảnh
+img = convfacenet.load_image(img_path)
+faces_feature_list = convfacenet.faces_features(img)
 
-faces_imgs=convfacenet.detect_face(img)
-# you can specify face imgs size  
-faces_imgs=convfacenet.detect_face(img,target_size(240,240))
+# ___ Cắt và căn chỉnh khuôn mặt từ ảnh gốc ___
+faces_imgs = convfacenet.detect_face(img)
+# Bạn có thể chỉ định kích thước ảnh khuôn mặt đầu ra (ví dụ 240x240)
+faces_imgs = convfacenet.detect_face(img, target_size=(240, 240))
 
-# ___ verify two faces are for same person or not ___
-img1=convfacenet.load_image(img1_path)
-img2=convfacenet.load_image(img2_path)
+# ___ So khớp hai khuôn mặt xem có cùng một người hay không ___
+img1 = convfacenet.load_image(img1_path)
+img2 = convfacenet.load_image(img2_path)
 
-boolean_result,prediction_value=convfacenet.verify_faces(img1,img2)
-# specify threshold --> best 0.4
-boolean_result,prediction_value=convfacenet.verify_faces(img1,img2,threshold=0.45)
-
- 
+boolean_result, prediction_value = convfacenet.verify_faces(img1, img2)
+# Chỉ định ngưỡng (threshold) --> tốt nhất là 0.4
+boolean_result, prediction_value = convfacenet.verify_faces(img1, img2, threshold=0.45)
 ```
-# Dataset
-## [CelebFaces Attributes (CelebA) Dataset](https://mmlab.ie.cuhk.edu.hk/projects/CelebA.html) 
+
+# Tập dữ liệu (Dataset)
+## [Tập dữ liệu CelebFaces Attributes (CelebA)](https://mmlab.ie.cuhk.edu.hk/projects/CelebA.html) 
 <p align="center"><img src="readme-assets/Celba.png" alt="img-celba" width="720" height="250" /> </p>  
 
-- CelebFaces Attributes Dataset (CelebA) is a large-scale face attributes dataset with more than 200K celebrity images
-- The images in this dataset cover large pose variations and background clutter. CelebA has large diversities, large quantities
-  - 10,177 number of identities
-  - 202,599 number of face images
-  - dataset is about 10 GB
-- Data structure before preparation
-  - `dataset/img-celba/xxxxxx.jpg` images folder
-  - `dataset/identites.txt` txt file each line has `photo-name identity-number` <img src="readme-assets/identity_txt_file.png" alt="img-celba" width="250" height="100" />
-- ### sample images
+- CelebFaces Attributes (CelebA) là một tập dữ liệu thuộc tính khuôn mặt quy mô lớn với hơn 200.000 hình ảnh của người nổi tiếng.
+- Các hình ảnh trong tập dữ liệu này bao gồm sự đa dạng rất lớn về góc chụp (pose), biểu cảm khuôn mặt và bối cảnh nền phức tạp. Các đặc điểm chính:
+  - 10.177 định danh (danh tính khác nhau)
+  - 202.599 hình ảnh khuôn mặt
+  - Dung lượng tập dữ liệu khoảng 10 GB
+- Cấu trúc thư mục dữ liệu trước khi chuẩn bị:
+  - `dataset/img-celba/xxxxxx.jpg`: thư mục chứa hình ảnh.
+  - `dataset/identites.txt`: file văn bản, mỗi dòng chứa thông tin `tên-ảnh số-định-danh`. <img src="readme-assets/identity_txt_file.png" alt="img-celba" width="250" height="100" />
+- ### Hình ảnh mẫu (Sample images)
   - <img src="readme-assets/sample-dataset.png" alt="img-celba" width="720" height="300" />
-# Data preprocessing and preparation
-- [Data preprocessing jupyter file](notebooks/data_preprocessing.ipynb)
-- using face detector [face-detection](https://github.com/elliottzheng/face-detection) from [elliottzheng](https://github.com/elliottzheng) to detect faces
-- align faces to get better learning performance by getting the left and right eye coordinates and rotate the image to make the two eyes on same horizontal line and make them at the center of the image
-- resize photos after face extraction and alignment to be square photos 240x240 as input size for the model without image deformation by filling the remaining pixels with black pixels to make the image square image then resize it
-- after image resize and face extraction the size of the data decreased from around 10 GB to 2.82 GB which fastens the training performance
-## sample
+
+# Tiền xử lý và chuẩn bị dữ liệu
+- [Xem Jupyter Notebook Tiền xử lý dữ liệu](notebooks/data_preprocessing.ipynb)
+- Sử dụng bộ phát hiện khuôn mặt [face-detection](https://github.com/elliottzheng/face-detection) của tác giả [elliottzheng](https://github.com/elliottzheng) để phát hiện khuôn mặt.
+- Căn chỉnh khuôn mặt (face alignment) để cải thiện hiệu năng học của mô hình: xác định tọa độ mắt trái và mắt phải, sau đó xoay ảnh để hai mắt nằm trên cùng một đường thẳng nằm ngang và căn khuôn mặt vào trung tâm ảnh.
+- Thay đổi kích thước ảnh (resize) sau khi trích xuất và căn chỉnh thành ảnh vuông kích thước 240x240 (kích thước đầu vào của mô hình) mà không làm biến dạng khuôn mặt: thêm các điểm ảnh màu đen vào phần rìa để tạo thành ảnh vuông trước khi tiến hành resize.
+- Sau khi thực hiện cắt khuôn mặt và thay đổi kích thước, dung lượng tập dữ liệu giảm từ 10 GB xuống còn khoảng 2.82 GB, giúp tăng đáng kể tốc độ huấn luyện.
+## Minh họa
 <p align="center"><img src="readme-assets/face_detection.PNG" alt="img-celba" width="500" height="250" /> </p>  
 
-## prepare train and test data
-1. read img_name/identity txt file each line has image name and the identity number of this image
-2. get identity_pics dictionary `{"identity-number":[list of photos]}`
-3. split identities to train and test
-4. create train and test folders
-5. for each identity create a folder and add it's images in it `person_id/img_name`
-- data after preparation structure
-  - `train/person_id/xxxxxx.jpg `
+## Chuẩn bị dữ liệu huấn luyện (train) và kiểm thử (test)
+1. Đọc file txt chứa liên kết tên hình ảnh/định danh (mỗi dòng chứa tên ảnh và mã định danh của ảnh đó).
+2. Tạo từ điển (dictionary) chứa danh sách ảnh theo định danh: `{"mã-định-danh": [danh sách tên ảnh]}`.
+3. Chia ngẫu nhiên danh sách định danh thành hai tập train và test.
+4. Tạo các thư mục `train` và `test`.
+5. Với mỗi định danh, tạo một thư mục con riêng biệt và lưu các ảnh thuộc định danh đó vào trong: `person_id/tên_ảnh.jpg`.
+- Cấu trúc thư mục dữ liệu sau khi chuẩn bị:
+  - `train/person_id/xxxxxx.jpg`
   - `test/person_id/xxxxxx.jpg`
-## metadata
+## Thông tin thống kê (Metadata)
+  ```text
+Số lượng định danh huấn luyện (train) = 7632
+Số lượng ảnh huấn luyện (train) = 147944
+Số lượng ảnh trung bình trên mỗi định danh = 19
+
+Số lượng định danh kiểm thử (test) = 2545
+Số lượng ảnh kiểm thử (test) = 48969
+Số lượng ảnh trung bình trên mỗi định danh = 19
   ```
-no of train identities=7632
-no of train photos=147944
-mean of photo count for each identity=19
 
-no of test identities=2545
-no of test photos=48969
-mean of photo count for each identity=19
-  ```
+# Quá trình Huấn luyện và Tải dữ liệu (Data Loading)
+- Trong phần này tôi sẽ trình bày:
+  - Cách huấn luyện mô hình để đạt được độ chính xác cao và thời gian huấn luyện.
+  - Phương pháp chọn mẫu âm ngẫu nhiên (random negative selection) và chọn mẫu âm khó (hard negative selection) hiệu quả.
+  - Lịch sử huấn luyện và việc lựa chọn mô hình xương sống (backbone) để bắt đầu quá trình học chuyển giao (transfer learning).
 
-# Training process and Data loading
-- in this section i will cover 
-  - how i trained the model to reach this accuracy and the time taken to train the model
-  - efficient random and hard anchor negative selection
-  - train history and backbone model selection to start transfer learning from it
-
-## Training goal :
-  - we want the model to be able to output the distance between feature vectors for different photos for the same person `anchor and anchor-positive ` be minimum and, the distance between two different persons feature vector `anchor and anchor-negative `be as far as possible
+## Mục tiêu huấn luyện:
+  - Chúng ta muốn mô hình tối thiểu hóa khoảng cách giữa các vector đặc trưng của cùng một người (`anchor` và `anchor-positive`) và tối đa hóa khoảng cách giữa các vector đặc trưng của hai người khác nhau (`anchor` và `anchor-negative`).
   - ![triplet train](readme-assets/triplet_train.png)
-  - the output features for person face dimension will be 128 feature vector
+  - Đầu ra đặc trưng của khuôn mặt là một vector có số chiều là 128.
   <img src="readme-assets/simple model structure.PNG" alt="simple model structure" width="500" height="250"/>
 
-
-  
-## Training algorithm
-- first select  person(a)  from all train identities , then select two  pictures for person (a) ` person(a)_pic1 and person(a)_pic2 `
-- select  different person (b) then select photo for person (b) ` person(b)_pic1 `
-- do three forward steps for each photo , now we have three vectors `person(a)_pic_1 (128 vector) , person(a)_pic_2 (128 vector) , person(b)_pic_1 (128 vector)`
-- we want to minimize distance between `person(a)_pic_1 (128 anchor vector) , person(a)_pic_2 (128 anchor postive vector)` (same person) and maximize distance between ` person(a)_pic_1 (128 anchor positive vector) , person(b)_pic_1 (128 anchor negative vector)`
-- calculate the **Triplet margin loss** for the three vectors , then do backward step and update model weights 
-### loss function
-- **Triplet margin loss**
+## Thuật toán huấn luyện
+- Đầu tiên, chọn một người (a) ngẫu nhiên từ tập các định danh huấn luyện, sau đó chọn hai bức ảnh khác nhau của người này: `người(a)_ảnh1` (anchor) và `người(a)_ảnh2` (anchor-positive).
+- Chọn một người (b) khác với người (a), sau đó chọn một bức ảnh của người (b): `người(b)_ảnh1` (anchor-negative).
+- Thực hiện ba lượt lan truyền xuôi (forward pass) qua mô hình cho mỗi bức ảnh, thu được 3 vector đặc trưng 128 chiều: `người(a)_ảnh1 (vector 128 chiều)`, `người(a)_ảnh2 (vector 128 chiều)` và `người(b)_ảnh1 (vector 128 chiều)`.
+- Mục tiêu là thu hẹp khoảng cách giữa `người(a)_ảnh1` và `người(a)_ảnh2` (cùng một người), đồng thời đẩy xa khoảng cách giữa `người(a)_ảnh1` và `người(b)_ảnh1`.
+- Tính hàm mất mát **Triplet Margin Loss** cho ba vector đặc trưng này, sau đó thực hiện lan truyền ngược (backward pass) và cập nhật trọng số của mô hình.
+### Hàm mất mát (Loss function)
+- Sử dụng hàm mất mát **Triplet Margin Loss**:
 - ![loss_function](readme-assets/loss_function.png)
 
-### Anchor negative selection
-- first the model trained with **random anchor negative selection** , after (train_loss,test_loss) decreased , the algorithm will be changed to **Hard anchor negative selection**
+### Lựa chọn mẫu âm (Anchor Negative Selection)
+- Ban đầu mô hình được huấn luyện với phương pháp **Lựa chọn mẫu âm ngẫu nhiên (Random Anchor Negative Selection)**. Sau khi sai số (train_loss, test_loss) giảm xuống ổn định, thuật toán sẽ chuyển sang phương pháp **Lựa chọn mẫu âm khó (Hard Anchor Negative Selection)**.
 
-#### random anchor negative selection
-- first select random person(a)  from all train identities , then select two random pictures for person (a)
-- select random negative person (b) then select random photo for person (b)
-- data loader --> FacesTripletDataset class in [data_loader.py](src/convfacenet_train/data_load.py)
-#### Hard anchor negative selection
-- before training extract all image features by the last weights checkpoint for the model in a dictionary `img_features_dict key-->"img_full_path" value-->[image feature vector]`
-- images used as **anchor negative** image ,it's features are updated after each epoch 
-- each train step for one row (anchor , anchor_positive , anchor_negative)
-  1. select random person(a)  from all train identities , then select two random pictures for person (a)
-  2. select random `n` pictures for different persons (where n is specified in the train loader) 
-  3. from the `n` pictures select the path of the picture that has minimum ecludian distance from the anchor image (person which looks similar to person(a) selected in the previous step)
-  4. insert the selected photo path in the used images in current epoch to update its feature vectors in the next epoch
-- each epoch update `img_features_dict` ,reload used images in previous epoch with the new updated weights after the epoch
+#### Lựa chọn mẫu âm ngẫu nhiên (Random Anchor Negative Selection)
+- Chọn ngẫu nhiên người (a) từ tập huấn luyện và chọn hai bức ảnh ngẫu nhiên của người này.
+- Chọn ngẫu nhiên người (b) (khác người a) và một ảnh ngẫu nhiên của người đó làm mẫu âm.
+- Lớp tải dữ liệu thực thi: `FacesTripletDataset` trong file [data_load.py](src/convfacenet_train/data_load.py).
 
-## Train data loaders
-- [data_load.py](src/convfacenet_train/data_load.py)
-- `FacesDataset`
-  - parent class for faces dataset loader , loads all identities and each identity photos path
-  - the class takes the dataset path , no of rows per epoch , transforms you want to apply for image
-  - Calculates  photos usage statistics --> (usage count for each photo and mean usage for the photos and the standard deviation of photo usage ) to ensure that we are training on all photos and random algorithm runs twith uniform distribution
-  - uses **Random anchor negative selection**
-- `FaceHardSelectionDataset`
-  - inherits from `FacesDataset`
-  - load all face photos of the given dataset path feature vector to a dictionary (batch loading to fasten features loading)
-      - dictionary key : img full path--> 'person_identity/pic_name.jpg' 
-      - dictionary value : \[128-feature-vector]
-  - uses **Hard anchor negative selection**
-  
+#### Lựa chọn mẫu âm khó (Hard Anchor Negative Selection)
+- Trước khi bắt đầu huấn luyện epoch mới, trích xuất tất cả đặc trưng của các ảnh bằng trọng số checkpoint mới nhất của mô hình và lưu vào từ điển: `img_features_dict` (key: `đường_dẫn_ảnh_đầy_đủ`, value: `vector_đặc_trưng_128_chiều`).
+- Các ảnh được sử dụng làm **mẫu âm khó (anchor negative)** sẽ được cập nhật lại đặc trưng sau mỗi epoch.
+- Với mỗi bước huấn luyện cho bộ ba ảnh (anchor, anchor_positive, anchor_negative):
+  1. Chọn ngẫu nhiên người (a) và hai bức ảnh của người (a).
+  2. Chọn ngẫu nhiên `n` ảnh của các người khác (với `n` được định nghĩa trong bộ tải dữ liệu).
+  3. Từ `n` ảnh này, tìm đường dẫn ảnh có khoảng cách Euclidean nhỏ nhất so với ảnh anchor (tức là người khác nhưng có gương mặt giống người (a) nhất).
+  4. Thêm đường dẫn ảnh được chọn vào danh sách các ảnh sử dụng trong epoch hiện tại để cập nhật lại vector đặc trưng trong epoch tiếp theo.
+- Sau mỗi epoch, cập nhật lại toàn bộ `img_features_dict` sử dụng trọng số mới nhất vừa được tối ưu.
 
-## Training Loop
-- [models_train.py](src/convfacenet_train/models_train.py)
-- train loss and test loss logged while training
-- model weights saved after each epoch if the test loss reaches a new minimum test loss in the given model weights path
-- avg time remaining and time taken  calculated during training
-- if there is an overfit the train method prints a warning message
-- training history saved in excel sheet it's path given for training method
+## Các bộ tải dữ liệu (Train Data Loaders)
+- Đường dẫn file: [data_load.py](src/convfacenet_train/data_load.py)
+- Lớp `FacesDataset`
+  - Lớp cha cho bộ tải dữ liệu khuôn mặt, chịu trách nhiệm tải tất cả các định danh và danh sách đường dẫn ảnh tương ứng.
+  - Lớp nhận vào đường dẫn tập dữ liệu, số lượng dòng cho mỗi epoch và các phép biến đổi ảnh (transforms) cần áp dụng.
+  - Tính toán số liệu thống kê việc sử dụng ảnh (số lần sử dụng của mỗi ảnh, số lần sử dụng trung bình và độ lệch chuẩn) để đảm bảo mô hình được huấn luyện đều trên tất cả các ảnh và thuật toán chọn ngẫu nhiên tuân theo phân phối đều.
+  - Sử dụng **Lựa chọn mẫu âm ngẫu nhiên (Random anchor negative selection)**.
+- Lớp `FaceHardSelectionDataset`
+  - Kế thừa từ `FacesDataset`.
+  - Tải trước tất cả vector đặc trưng khuôn mặt của tập dữ liệu vào một từ điển (sử dụng batch loading để tăng tốc độ tải đặc trưng).
+    - Cấu trúc dictionary key: `person_identity/pic_name.jpg` -> value: `[vector đặc trưng 128 chiều]`.
+  - Sử dụng **Lựa chọn mẫu âm khó (Hard anchor negative selection)**.
+
+## Vòng lặp huấn luyện (Training Loop)
+- Đường dẫn file: [models_train.py](src/convfacenet_train/models_train.py)
+- Lưu nhật ký train loss và test loss trong suốt quá trình huấn luyện.
+- Lưu lại trọng số của mô hình sau mỗi epoch nếu giá trị test loss đạt mức tối thiểu mới.
+- Tính toán thời gian huấn luyện trung bình còn lại (time remaining) và thời gian đã thực hiện (time taken).
+- In cảnh báo nếu phát hiện hiện tượng quá khớp (overfitting).
+- Lưu lại lịch sử huấn luyện dưới dạng file Excel theo đường dẫn được cung cấp.
   - ![train_data_rows_csv](readme-assets/train_data_rows.PNG)
-### Hard anchor negative train
+### Huấn luyện với mẫu âm khó (Hard negative training)
   ![train_data_rows_csv](readme-assets/negative-anchor-train.PNG)
 
-
-
-# Train history and backend model selection
-- all train history from 15/5/2022 stored in csv file , trying different algorithms and changing the classifier architecture , input normalization , changing learning rate , data loading
-## efficientnet model
-- I started first with efficientnet-b1 model with a small portion of img-CelbA dataset about 25,000 picture to test the model and select the best architecture for fully connected classifier model
-### Train on small subset from data
-- 131 epoch form 16/5/2022 to 25/5/2022
+# Lịch sử huấn luyện và Lựa chọn mô hình cho Backend
+- Tất cả lịch sử huấn luyện từ ngày 15/05/2022 được lưu trữ trong tệp CSV, bao gồm việc thử nghiệm các thuật toán khác nhau, thay đổi cấu trúc bộ phân lớp (classifier), chuẩn hóa đầu vào, thay đổi tốc độ học (learning rate), và phương pháp tải dữ liệu.
+## Mô hình EfficientNet
+- Ban đầu tôi thử nghiệm với mô hình EfficientNet-B1 trên một phần nhỏ của tập dữ liệu CelebA (khoảng 25.000 ảnh) để đánh giá và chọn ra cấu trúc tốt nhất cho mạng kết nối đầy đủ (fully connected classifier).
+### Huấn luyện trên tập dữ liệu con (small subset)
+- Huấn luyện 131 epoch từ ngày 16/05/2022 đến ngày 25/05/2022.
 - ![effnett_subset_train_table.PNG](readme-assets/effnett_subset_train_table.PNG)
 - ![effnett_subset_train_table.PNG](readme-assets/effnett_subset_train_curve.PNG)
 
-### Train on full dataset
-- used classifier architecture --> (1280,256,128)
-- train transform used --> (Random Horizontal flip, random Rotation , Random Auto Contrast, standardization)
-- 230 epoch form 26/5/2022 to 3/6/2022
+### Huấn luyện trên toàn bộ tập dữ liệu (full dataset)
+- Cấu trúc mạng phân lớp sử dụng: (1280, 256, 128)
+- Các phép biến đổi dữ liệu huấn luyện (transforms): Random Horizontal Flip, Random Rotation, Random Auto Contrast, và chuẩn hóa (standardization).
+- Huấn luyện 230 epoch từ ngày 26/05/2022 đến ngày 03/06/2022.
 - ![effnet_fulldata-table.JPG](readme-assets/effnet_fulldata-table.JPG)
 - ![effnet_fulldata-curve.JPG](readme-assets/effnet_fulldata-curve.JPG)
 
-## Convnext Model
-- used classifier architecture --> (768,128)
+## Mô hình ConvNeXt
+- Cấu trúc mạng phân lớp sử dụng: (768, 128)
 - ![convnext_fulldata_table.JPG](readme-assets/convnext_fulldata_table.JPG)
 - ![convnext_fulldata_curve.JPG](readme-assets/convnext_fulldata_curve.JPG)
 
-
-# Model Evaluation
-## CelebA dataset
+# Đánh giá mô hình (Model Evaluation)
+## Tập dữ liệu CelebA
 - ![convnext_Accuracy_CelbA.JPG](readme-assets/convnext_Accuracy_CelbA.JPG)
 
-## Labeled Faces in the Wild (LFW) dataset
+## Tập dữ liệu Labeled Faces in the Wild (LFW)
 - ![convnext_Accuracy_LFW.JPG](readme-assets/convnext_Accuracy_LFW.JPG)

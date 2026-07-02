@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from app.config import FACE_MODEL_DIR, FACE_MODEL_SRC
+from app.core.config import FACE_MODEL_DIR, FACE_MODEL_SRC
 
 
 def _ensure_convfacenet_importable() -> None:

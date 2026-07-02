@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.face import router as face_router
+from app.api.router import api_router
 
 
 app = FastAPI(title="Face Attendance API")
@@ -15,9 +15,4 @@ app.add_middleware(
 )
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-
-app.include_router(face_router)
+app.include_router(api_router)

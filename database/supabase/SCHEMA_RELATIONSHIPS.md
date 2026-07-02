@@ -30,6 +30,7 @@ Lưu hồ sơ nhân viên.
 Cột quan trọng:
 
 - `id`: khóa chính UUID.
+- `auth_user_id`: liên kết tới tài khoản đăng nhập Supabase Auth.
 - `employee_code`: mã nhân viên, duy nhất.
 - `full_name`: họ tên nhân viên.
 - `department`: phòng ban.

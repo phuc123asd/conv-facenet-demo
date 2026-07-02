@@ -1,0 +1,95 @@
+/* ─── SETTINGS ─── */
+
+.settings-card { max-width: 680px; }
+
+.settings-card label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  min-height: 62px;
+  border-top: 1px solid var(--line);
+  transition: transform 0.2s ease, background-color 0.2s ease, padding-inline 0.2s ease;
+}
+
+.settings-card label:hover {
+  border-radius: 16px;
+  background: rgba(14, 165, 233, 0.05);
+  transform: translateX(3px);
+  padding-inline: 10px;
+}
+
+.settings-card input[type="checkbox"] {
+  position: relative;
+  flex: 0 0 auto;
+  width: 58px;
+  height: 32px;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid rgba(23, 32, 51, 0.16);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 78% 50%, rgba(14, 165, 233, 0.16), transparent 22%),
+    rgba(255, 255, 255, 0.68);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), 0 12px 24px -22px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  outline: 0;
+  transition: border-color 0.22s ease, background-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+}
+
+.settings-card input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 8px 16px -10px rgba(0, 0, 0, 0.52);
+  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.settings-card input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 10px;
+  width: 6px;
+  height: 11px;
+  border: solid var(--icon-accent);
+  border-width: 0 2px 2px 0;
+  opacity: 0;
+  transform: rotate(45deg) scale(0.7);
+  transition: opacity 0.18s ease, transform 0.2s ease;
+}
+
+.settings-card input[type="checkbox"]:checked {
+  border-color: rgba(14, 165, 233, 0.36);
+  background:
+    radial-gradient(circle at 76% 50%, rgba(255, 255, 255, 0.72), transparent 14%),
+    linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(20, 184, 166, 0.12));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), 0 14px 28px -22px var(--icon-glow);
+}
+
+.settings-card input[type="checkbox"]:checked::before {
+  background: linear-gradient(135deg, #f8fdff, #ffffff);
+  box-shadow: 0 9px 18px -11px rgba(0, 0, 0, 0.55), 0 0 0 5px rgba(14, 165, 233, 0.08);
+  transform: translateX(26px);
+}
+
+.settings-card input[type="checkbox"]:checked::after {
+  opacity: 1;
+  transform: translateX(26px) rotate(45deg) scale(1);
+}
+
+.settings-card input[type="checkbox"]:hover {
+  transform: translateY(-1px);
+  border-color: rgba(14, 165, 233, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.82), 0 16px 32px -24px var(--icon-glow);
+}
+
+.settings-card input[type="checkbox"]:focus-visible {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.82), 0 0 0 4px rgba(14, 165, 233, 0.14);
+}

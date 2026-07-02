@@ -1,0 +1,306 @@
+/* ─── RESPONSIVE ─── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .app-shell { padding: 14px; }
+  .login-console {
+    grid-template-columns: 1fr;
+    max-width: 620px;
+  }
+  .login-visual {
+    min-height: 460px;
+  }
+  .mode-bar, .admin-header, .camera-header, .table-header { align-items: stretch; flex-direction: column; }
+  .top-controls {
+    align-items: stretch;
+    justify-content: stretch;
+  }
+  .account-switch,
+  .session-chip,
+  .mode-switch {
+    width: 100%;
+  }
+  .account-switch {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: unset;
+  }
+  .account-switch button {
+    justify-content: center;
+  }
+  .session-chip,
+  .logout-button {
+    justify-content: center;
+  }
+  .kiosk-grid, .admin-layout, .dashboard-grid, .employee-grid, .management-grid, .report-grid, .settings-grid { grid-template-columns: 1fr; }
+  .camera-frame { min-height: 480px; }
+  .kiosk-grid {
+    gap: 18px;
+    min-height: auto;
+  }
+  .camera-card {
+    padding: 20px;
+  }
+  .camera-header {
+    flex-direction: row;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .camera-header > div:first-child {
+    min-width: 0;
+  }
+  .live-pill {
+    flex: 0 0 auto;
+    align-self: flex-start;
+    width: fit-content;
+  }
+  .liveness-ring {
+    width: min(300px, 62vw);
+  }
+  .sidebar,
+  .sidebar:hover,
+  .sidebar:focus-within {
+    position: relative;
+    top: auto;
+    width: 100%;
+    height: auto;
+  }
+  .brand-lockup {
+    min-width: 0;
+    margin-bottom: 14px;
+  }
+  .brand-copy,
+  .sidebar:hover .brand-copy,
+  .sidebar:focus-within .brand-copy {
+    opacity: 1;
+    transform: none;
+  }
+  .side-nav {
+    grid-template-columns: repeat(9, 44px);
+    overflow-x: auto;
+  }
+  .nav-item {
+    justify-content: center;
+    width: 44px;
+  }
+  .nav-item,
+  .sidebar:hover .nav-item,
+  .sidebar:focus-within .nav-item {
+    gap: 0;
+    padding-right: 0;
+  }
+  .nav-label,
+  .sidebar:hover .nav-label,
+  .sidebar:focus-within .nav-label {
+    position: absolute;
+    opacity: 0;
+    transform: none;
+  }
+  .spotlight { min-width: 0; flex: 1; }
+  .employee-row { grid-template-columns: auto minmax(0, 1fr); }
+  .employee-row > span,
+  .employee-row .badge,
+  .employee-row .icon-soft { justify-self: start; }
+}
+
+@media (max-width: 680px) {
+  h1 { font-size: 27px; }
+  h2 { font-size: 30px; }
+  h3 { font-size: 20px; }
+  .app-shell {
+    padding: 10px;
+  }
+  .login-shell {
+    padding: 10px;
+  }
+  .login-console {
+    border-radius: 24px;
+    padding: 10px;
+  }
+  .login-visual,
+  .login-card {
+    border-radius: 20px;
+    padding: 18px;
+  }
+  .login-visual {
+    min-height: 420px;
+  }
+  .access-orbit {
+    min-height: 240px;
+    border-radius: 22px;
+  }
+  .face-frame {
+    width: 118px;
+    border-radius: 32px;
+  }
+  .security-strip {
+    grid-template-columns: 1fr;
+  }
+  .security-strip div {
+    min-height: 64px;
+  }
+  .mode-bar {
+    top: 8px;
+    gap: 12px;
+    padding: 13px;
+    border-radius: 22px;
+  }
+  .top-controls {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .account-switch button {
+    min-height: 40px;
+    padding: 0 9px;
+  }
+  .account-switch small {
+    display: none;
+  }
+  .session-chip {
+    min-height: 46px;
+  }
+  .demo-login-grid {
+    grid-template-columns: 1fr;
+  }
+  .mode-switch button,
+  .ios-toggle button {
+    min-height: 36px;
+    padding: 0 12px;
+  }
+  .view-space {
+    padding-top: 14px;
+  }
+  .stats-grid, .profile-stats { grid-template-columns: 1fr; }
+  .kiosk-actions, .admin-tools, .table-tools, .action-strip { flex-direction: column; align-items: stretch; }
+  .mode-switch, .ios-toggle { width: 100%; }
+  .camera-card {
+    padding: 16px;
+    border-radius: 20px;
+  }
+  .camera-header {
+    gap: 10px;
+  }
+  .camera-header h2 {
+    font-size: 28px;
+  }
+  .live-pill {
+    min-height: 32px;
+    padding: 7px 10px;
+    font-size: 13px;
+  }
+  .live-pill span {
+    width: 7px;
+    height: 7px;
+    box-shadow: 0 0 0 5px rgba(52, 199, 89, 0.14);
+  }
+  .camera-frame {
+    min-height: clamp(330px, 58svh, 430px);
+    margin-top: 14px;
+    border-radius: 22px;
+  }
+  .liveness-ring {
+    top: 43%;
+    width: min(235px, 68vw);
+  }
+  .camera-footer {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 1px 10px;
+    padding: 12px;
+    border-radius: 17px;
+  }
+  .camera-footer strong,
+  .camera-footer small {
+    overflow-wrap: anywhere;
+  }
+  .kiosk-actions {
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .primary-action {
+    width: 100%;
+    min-height: 44px;
+  }
+  .person-panel {
+    gap: 12px;
+  }
+  .greeting-card, .shift-card, .history-card {
+    padding: 16px;
+    border-radius: 20px;
+  }
+  .greeting-card {
+    min-height: auto;
+  }
+  .avatar-large {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 12px;
+  }
+  .shift-card {
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .mini-table {
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .spoof-event {
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
+  }
+  .risk-pill {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .event-action {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .mini-table div { grid-template-columns: 1fr auto; }
+  .mini-table em { grid-column: 1 / -1; }
+  .attendance-table { overflow-x: auto; }
+  .table-row { min-width: 760px; }
+  .approval-row { grid-template-columns: 1fr; }
+  .approval-actions { justify-content: flex-start; }
+}
+
+@media (max-width: 420px) {
+  h1 { font-size: 23px; }
+  h2 { font-size: 26px; }
+  .mode-bar {
+    border-radius: 20px;
+  }
+  .camera-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .camera-header h2 {
+    font-size: 25px;
+  }
+  .live-pill {
+    gap: 6px;
+    padding-inline: 9px;
+  }
+  .camera-frame {
+    min-height: clamp(300px, 54svh, 380px);
+  }
+  .liveness-ring {
+    width: min(205px, 64vw);
+  }
+  .camera-footer {
+    font-size: 13px;
+  }
+  .camera-footer small {
+    font-size: 12px;
+  }
+  .shift-card {
+    display: grid;
+  }
+}

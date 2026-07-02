@@ -1,32 +1,32 @@
-# Project Structure Review
+# Đánh Giá Cấu Trúc Dự Án (Project Structure Review)
 
-## Truoc Khi Sap Xep
+## Trước Khi Sắp Xếp
 
-- Web React nam o thu muc goc.
-- `conv-facenet` nam chung cap voi web, gom ca source model, notebook, weights, `.venv`, `.git`.
-- Chua co backend rieng de noi web voi model nhan dien.
-- Chua co schema database cho Supabase.
+- Mã nguồn Web React nằm ở thư mục gốc.
+- Thư mục `conv-facenet` nằm cùng cấp với web, bao gồm cả mã nguồn mô hình, notebook, weights, `.venv` và cấu hình `.git`.
+- Chưa có backend riêng để kết nối ứng dụng web với mô hình nhận diện khuôn mặt.
+- Chưa có cấu trúc (schema) cơ sở dữ liệu cho Supabase.
 
-## Sau Khi Sap Xep
+## Sau Khi Sắp Xếp
 
 ```text
-frontend/                  # Web React hien tai
-backend/                   # FastAPI API
-face-service/conv-facenet/ # Du an nhan dien guong mat hien co
-database/supabase/         # SQL migration
+frontend/                  # Giao diện ứng dụng React hiện tại
+backend/                   # API dịch vụ FastAPI
+face-service/conv-facenet/ # Dự án nhận diện khuôn mặt hiện có
+database/supabase/         # SQL migration quản lý schema cơ sở dữ liệu
 ```
 
-## Ly Do
+## Lý Do Sắp Xếp
 
-- Frontend khong nen import truc tiep model AI.
-- Backend giu nghiep vu diem danh, phan quyen, bao cao va ket noi database.
-- Face service giu model/doc lap, de sau nay co the tach thanh microservice GPU.
-- Database migration dat rieng de quan ly thay doi schema ro rang.
+- Giao diện frontend không nên import trực tiếp mô hình AI để chạy các tác vụ trích xuất nặng.
+- Backend chịu trách nhiệm xử lý nghiệp vụ điểm danh, phân quyền, kết xuất báo cáo và tương tác trực tiếp với cơ sở dữ liệu.
+- Face service giữ mô hình/thư viện nhận dạng độc lập, giúp dễ dàng tách thành microservice GPU riêng biệt khi mở rộng quy mô.
+- Thư mục database migration được thiết kế riêng giúp quản lý phiên bản và theo dõi thay đổi cấu trúc bảng rõ ràng.
 
-## Buoc Nang Cap Tiep Theo
+## Bước Nâng Cấp Tiếp Theo
 
-1. Ket noi backend voi Supabase.
-2. Them API nhan vien, ca lam, lich su diem danh.
-3. Luu face embedding vao `face_profiles`.
-4. Cho frontend goi backend thay vi data demo.
-5. Tach `conv-facenet` thanh service rieng neu can GPU hoac nhieu kiosk.
+1. Thực hiện kết nối hoàn chỉnh backend với Supabase.
+2. Bổ sung các API quản lý nhân viên, ca làm việc và lịch sử điểm danh.
+3. Lưu trữ vector đặc trưng khuôn mặt (face embedding) vào bảng `face_profiles`.
+4. Cập nhật frontend để gọi API backend thay vì sử dụng dữ liệu tĩnh (mock data).
+5. Tách `conv-facenet` thành một service độc lập nếu có nhu cầu sử dụng GPU chuyên dụng hoặc kết nối nhiều thiết bị kiosk điểm danh.

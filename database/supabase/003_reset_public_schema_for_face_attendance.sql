@@ -15,6 +15,7 @@ create extension if not exists vector;
 
 create table public.employees (
   id uuid primary key default gen_random_uuid(),
+  auth_user_id uuid unique references auth.users(id) on delete set null,
   employee_code text not null unique,
   full_name text not null,
   department text,
