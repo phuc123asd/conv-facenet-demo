@@ -46,9 +46,9 @@ const historyRows = [
 ];
 
 const spoofAlerts = [
-  { title: "Ảnh chụp trước camera", time: "08:42 · Cổng A", tone: "sunset" },
-  { title: "Màn hình điện thoại", time: "09:17 · Cổng B", tone: "aqua" },
-  { title: "Ánh sáng bất thường", time: "10:03 · Cổng A", tone: "rose" },
+  { title: "Ảnh chụp trước camera", time: "08:42", location: "Cổng A", tone: "sunset", risk: "Cao" },
+  { title: "Màn hình điện thoại", time: "09:17", location: "Cổng B", tone: "aqua", risk: "Trung bình" },
+  { title: "Ánh sáng bất thường", time: "10:03", location: "Cổng A", tone: "rose", risk: "Thấp" },
 ];
 
 const employees = [
@@ -253,7 +253,7 @@ function AdminView() {
             <div className="app-icon">
               <Fingerprint size={24} />
             </div>
-            <div>
+            <div className="brand-copy">
               <strong>Attendance AI</strong>
               <span>HR Admin</span>
             </div>
@@ -309,9 +309,9 @@ function AdminView() {
 
 function NavItem({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
   return (
-    <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick} type="button">
-      {icon}
-      {label}
+    <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick} title={label} type="button">
+      <span className="nav-icon">{icon}</span>
+      <span className="nav-label">{label}</span>
     </button>
   );
 }
@@ -367,10 +367,21 @@ function DashboardPanel() {
           </div>
           <div className="alert-list">
             {spoofAlerts.map((alert) => (
-              <div key={alert.title}>
-                <span className={`capture ${alert.tone}`} />
-                <strong>{alert.title}</strong>
-                <em>{alert.time}</em>
+              <div className={`spoof-event ${alert.tone}`} key={alert.title}>
+                <span className="event-signal">
+                  <ShieldAlert size={20} />
+                </span>
+                <div className="event-copy">
+                  <strong>{alert.title}</strong>
+                  <em>
+                    <span>{alert.time}</span>
+                    <span>{alert.location}</span>
+                  </em>
+                </div>
+                <span className="risk-pill">{alert.risk}</span>
+                <button className="event-action" aria-label={`Xem cảnh báo ${alert.title}`} type="button">
+                  <Flag size={16} />
+                </button>
               </div>
             ))}
           </div>
