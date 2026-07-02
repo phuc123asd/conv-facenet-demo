@@ -1,244 +1,244 @@
 # Supabase Schema Relationships
 
-Tai lieu nay mo ta cac bang trong schema `public` cho he thong diem danh bang nhan dien guong mat.
+Tài liệu này mô tả các bảng trong schema `public` cho hệ thống điểm danh bằng nhận diện khuôn mặt.
 
-## So Do Quan He
+## Sơ Đồ Quan Hệ
 
 ```mermaid
 erDiagram
-  employees ||--o{ face_profiles : "co ho so khuon mat"
-  employees ||--o{ shift_assignments : "duoc gan ca"
-  employees ||--o{ attendance_records : "co lich su diem danh"
-  employees ||--o{ attendance_adjustment_requests : "gui yeu cau sua cong"
-  employees ||--o{ spoofing_alerts : "co the lien quan canh bao"
+  employees ||--o{ face_profiles : "có hồ sơ khuôn mặt"
+  employees ||--o{ shift_assignments : "được gán ca"
+  employees ||--o{ attendance_records : "có lịch sử điểm danh"
+  employees ||--o{ attendance_adjustment_requests : "gửi yêu cầu sửa công"
+  employees ||--o{ spoofing_alerts : "có thể liên quan cảnh báo"
 
-  work_shifts ||--o{ shift_assignments : "duoc gan cho nhan vien"
-  work_shifts ||--o{ attendance_records : "ap dung cho lan diem danh"
+  work_shifts ||--o{ shift_assignments : "được gán cho nhân viên"
+  work_shifts ||--o{ attendance_records : "áp dụng cho lần điểm danh"
 
-  kiosk_devices ||--o{ attendance_records : "ghi nhan diem danh"
-  kiosk_devices ||--o{ spoofing_alerts : "phat sinh canh bao"
+  kiosk_devices ||--o{ attendance_records : "ghi nhận điểm danh"
+  kiosk_devices ||--o{ spoofing_alerts : "phát sinh cảnh báo"
 
-  attendance_records ||--o{ attendance_adjustment_requests : "co yeu cau dieu chinh"
+  attendance_records ||--o{ attendance_adjustment_requests : "có yêu cầu điều chỉnh"
 ```
 
-## Bang Chinh
+## Bảng Chính
 
 ### `employees`
 
-Luu ho so nhan vien.
+Lưu hồ sơ nhân viên.
 
-Cot quan trong:
+Cột quan trọng:
 
-- `id`: khoa chinh UUID.
-- `employee_code`: ma nhan vien, duy nhat.
-- `full_name`: ho ten nhan vien.
-- `department`: phong ban.
-- `role_title`: vai tro/chuc danh.
-- `employment_status`: trang thai lam viec, vi du `active`, `probation`, `inactive`.
+- `id`: khóa chính UUID.
+- `employee_code`: mã nhân viên, duy nhất.
+- `full_name`: họ tên nhân viên.
+- `department`: phòng ban.
+- `role_title`: vai trò/chức danh.
+- `employment_status`: trạng thái làm việc, ví dụ `active`, `probation`, `inactive`.
 
-Quan he:
+Quan hệ:
 
-- Mot nhan vien co nhieu `face_profiles`.
-- Mot nhan vien co nhieu `attendance_records`.
-- Mot nhan vien co nhieu `shift_assignments`.
-- Mot nhan vien co the co nhieu `attendance_adjustment_requests`.
-- Mot nhan vien co the lien quan den nhieu `spoofing_alerts`.
+- Một nhân viên có nhiều `face_profiles`.
+- Một nhân viên có nhiều `attendance_records`.
+- Một nhân viên có nhiều `shift_assignments`.
+- Một nhân viên có thể có nhiều `attendance_adjustment_requests`.
+- Một nhân viên có thể liên quan đến nhiều `spoofing_alerts`.
 
 ### `face_profiles`
 
-Luu thong tin khuon mat da dang ky cua nhan vien.
+Lưu thông tin khuôn mặt đã đăng ký của nhân viên.
 
-Cot quan trong:
+Cột quan trọng:
 
-- `id`: khoa chinh UUID.
-- `employee_id`: khoa ngoai den `employees.id`.
-- `embedding`: vector 128 chieu tu model `conv-facenet`.
-- `image_path`: duong dan anh dang ky trong storage.
-- `status`: trang thai ho so khuon mat, vi du `active`, `revoked`, `needs_update`.
-- `registered_at`: thoi diem dang ky.
-- `registered_by`: nguoi thuc hien dang ky, de gan voi tai khoan admin sau nay.
+- `id`: khóa chính UUID.
+- `employee_id`: khóa ngoại đến `employees.id`.
+- `embedding`: vector 128 chiều từ model `conv-facenet`.
+- `image_path`: đường dẫn ảnh đăng ký trong storage.
+- `status`: trạng thái hồ sơ khuôn mặt, ví dụ `active`, `revoked`, `needs_update`.
+- `registered_at`: thời điểm đăng ký.
+- `registered_by`: người thực hiện đăng ký, để gán với tài khoản admin sau này.
 
-Quan he:
+Quan hệ:
 
-- Nhieu `face_profiles` thuoc ve mot `employees`.
-- Khi xoa nhan vien, cac `face_profiles` cua nhan vien do cung bi xoa theo `on delete cascade`.
+- Nhiều `face_profiles` thuộc về một `employees`.
+- Khi xóa nhân viên, các `face_profiles` của nhân viên đó cũng bị xóa theo `on delete cascade`.
 
 ### `work_shifts`
 
-Luu cau hinh ca lam.
+Lưu cấu hình ca làm.
 
-Cot quan trong:
+Cột quan trọng:
 
-- `id`: khoa chinh UUID.
-- `name`: ten ca, vi du `Hanh chinh`, `Ca sang`, `Ca chieu`.
-- `start_time`: gio bat dau ca.
-- `end_time`: gio ket thuc ca.
-- `late_after_minutes`: so phut cho phep truoc khi tinh di muon.
-- `early_before_minutes`: so phut truoc gio ket thuc se tinh ve som.
+- `id`: khóa chính UUID.
+- `name`: tên ca, ví dụ `Hành chính`, `Ca sáng`, `Ca chiều`.
+- `start_time`: giờ bắt đầu ca.
+- `end_time`: giờ kết thúc ca.
+- `late_after_minutes`: số phút cho phép trước khi tính đi muộn.
+- `early_before_minutes`: số phút trước giờ kết thúc sẽ tính về sớm.
 
-Quan he:
+Quan hệ:
 
-- Mot ca lam co nhieu `shift_assignments`.
-- Mot ca lam co the duoc gan vao nhieu `attendance_records`.
+- Một ca làm có nhiều `shift_assignments`.
+- Một ca làm có thể được gán vào nhiều `attendance_records`.
 
 ### `shift_assignments`
 
-Gan nhan vien voi ca lam theo moc hieu luc.
+Gán nhân viên với ca làm theo mốc hiệu lực.
 
-Cot quan trong:
+Cột quan trọng:
 
-- `id`: khoa chinh UUID.
-- `employee_id`: khoa ngoai den `employees.id`.
-- `shift_id`: khoa ngoai den `work_shifts.id`.
-- `effective_from`: ngay bat dau ap dung ca.
-- `effective_to`: ngay ket thuc ap dung ca, co the rong neu van con hieu luc.
+- `id`: khóa chính UUID.
+- `employee_id`: khóa ngoại đến `employees.id`.
+- `shift_id`: khóa ngoại đến `work_shifts.id`.
+- `effective_from`: ngày bắt đầu áp dụng ca.
+- `effective_to`: ngày kết thúc áp dụng ca, có thể rỗng nếu vẫn còn hiệu lực.
 
-Rang buoc:
+Ràng buộc:
 
-- `unique(employee_id, shift_id, effective_from)`: tranh gan trung cung mot ca cho cung nhan vien trong cung ngay bat dau.
+- `unique(employee_id, shift_id, effective_from)`: tránh gán trùng cùng một ca cho cùng nhân viên trong cùng ngày bắt đầu.
 
-Quan he:
+Quan hệ:
 
-- Nhieu `shift_assignments` thuoc ve mot `employees`.
-- Nhieu `shift_assignments` tham chieu mot `work_shifts`.
+- Nhiều `shift_assignments` thuộc về một `employees`.
+- Nhiều `shift_assignments` tham chiếu một `work_shifts`.
 
 ### `kiosk_devices`
 
-Luu danh sach kiosk/camera dung de diem danh.
+Lưu danh sách kiosk/camera dùng để điểm danh.
 
-Cot quan trong:
+Cột quan trọng:
 
-- `id`: khoa chinh UUID.
-- `name`: ten thiet bi, vi du `Kiosk Cong A`.
-- `camera_code`: ma camera, duy nhat.
-- `location`: vi tri lap dat.
-- `status`: trang thai thiet bi, vi du `online`, `offline`, `maintenance`.
-- `last_seen_at`: thoi diem thiet bi gui tin hieu gan nhat.
+- `id`: khóa chính UUID.
+- `name`: tên thiết bị, ví dụ `Kiosk Cổng A`.
+- `camera_code`: mã camera, duy nhất.
+- `location`: vị trí lắp đặt.
+- `status`: trạng thái thiết bị, ví dụ `online`, `offline`, `maintenance`.
+- `last_seen_at`: thời điểm thiết bị gửi tín hiệu gần nhất.
 
-Quan he:
+Quan hệ:
 
-- Mot kiosk co nhieu `attendance_records`.
-- Mot kiosk co the tao nhieu `spoofing_alerts`.
+- Một kiosk có nhiều `attendance_records`.
+- Một kiosk có thể tạo nhiều `spoofing_alerts`.
 
 ### `attendance_records`
 
-Luu tung ban ghi diem danh cua nhan vien.
+Lưu từng bản ghi điểm danh của nhân viên.
 
-Cot quan trong:
+Cột quan trọng:
 
-- `id`: khoa chinh UUID.
-- `employee_id`: khoa ngoai den `employees.id`.
-- `device_id`: kiosk/camera ghi nhan diem danh.
-- `shift_id`: ca lam ap dung tai thoi diem diem danh.
-- `attendance_date`: ngay cong.
-- `check_in_at`: thoi diem vao.
-- `check_out_at`: thoi diem ra.
-- `status`: trang thai, vi du `valid`, `late`, `early_leave`, `missing_checkout`, `manual_adjusted`.
-- `liveness_score`: diem liveness neu co.
-- `match_distance`: khoang cach so khop khuon mat tu model.
-- `evidence_path`: anh bang chung trong storage neu can.
+- `id`: khóa chính UUID.
+- `employee_id`: khóa ngoại đến `employees.id`.
+- `device_id`: kiosk/camera ghi nhận điểm danh.
+- `shift_id`: ca làm áp dụng tại thời điểm điểm danh.
+- `attendance_date`: ngày công.
+- `check_in_at`: thời điểm vào.
+- `check_out_at`: thời điểm ra.
+- `status`: trạng thái, ví dụ `valid`, `late`, `early_leave`, `missing_checkout`, `manual_adjusted`.
+- `liveness_score`: điểm liveness nếu có.
+- `match_distance`: khoảng cách so khớp khuôn mặt từ model.
+- `evidence_path`: ảnh bằng chứng trong storage nếu cần.
 
-Quan he:
+Quan hệ:
 
-- Nhieu `attendance_records` thuoc ve mot `employees`.
-- Nhieu `attendance_records` duoc ghi nhan boi mot `kiosk_devices`.
-- Nhieu `attendance_records` co the tham chieu mot `work_shifts`.
-- Mot `attendance_records` co the co nhieu `attendance_adjustment_requests`.
+- Nhiều `attendance_records` thuộc về một `employees`.
+- Nhiều `attendance_records` được ghi nhận bởi một `kiosk_devices`.
+- Nhiều `attendance_records` có thể tham chiếu một `work_shifts`.
+- Một `attendance_records` có thể có nhiều `attendance_adjustment_requests`.
 
-Chi muc:
+Chỉ mục:
 
-- `idx_attendance_employee_date`: tang toc truy van lich su theo nhan vien va ngay.
-- `idx_attendance_date_status`: tang toc bao cao theo ngay va trang thai.
+- `idx_attendance_employee_date`: tăng tốc truy vấn lịch sử theo nhân viên và ngày.
+- `idx_attendance_date_status`: tăng tốc báo cáo theo ngày và trạng thái.
 
 ### `attendance_adjustment_requests`
 
-Luu yeu cau chinh sua cong, vi du quen check-out, camera loi, di cong tac.
+Lưu yêu cầu chỉnh sửa công, ví dụ quên check-out, camera lỗi, đi công tác.
 
-Cot quan trong:
+Cột quan trọng:
 
-- `id`: khoa chinh UUID.
-- `attendance_id`: ban ghi diem danh can dieu chinh, co the rong neu yeu cau tao moi cong.
-- `employee_id`: nhan vien gui/duoc tao yeu cau.
-- `reason`: ly do dieu chinh.
-- `requested_check_in_at`: gio vao de nghi.
-- `requested_check_out_at`: gio ra de nghi.
-- `status`: trang thai, vi du `pending`, `approved`, `rejected`.
-- `reviewed_by`: nguoi duyet.
-- `reviewed_at`: thoi diem duyet.
+- `id`: khóa chính UUID.
+- `attendance_id`: bản ghi điểm danh cần điều chỉnh, có thể rỗng nếu yêu cầu tạo mới công.
+- `employee_id`: nhân viên gửi/được tạo yêu cầu.
+- `reason`: lý do điều chỉnh.
+- `requested_check_in_at`: giờ vào đề nghị.
+- `requested_check_out_at`: giờ ra đề nghị.
+- `status`: trạng thái, ví dụ `pending`, `approved`, `rejected`.
+- `reviewed_by`: người duyệt.
+- `reviewed_at`: thời điểm duyệt.
 
-Quan he:
+Quan hệ:
 
-- Nhieu yeu cau thuoc ve mot `employees`.
-- Nhieu yeu cau co the lien quan mot `attendance_records`.
+- Nhiều yêu cầu thuộc về một `employees`.
+- Nhiều yêu cầu có thể liên quan một `attendance_records`.
 
 ### `spoofing_alerts`
 
-Luu canh bao gia mao khi diem danh bang khuon mat.
+Lưu cảnh báo giả mạo khi điểm danh bằng khuôn mặt.
 
-Cot quan trong:
+Cột quan trọng:
 
-- `id`: khoa chinh UUID.
-- `device_id`: kiosk/camera phat sinh canh bao.
-- `employee_id`: nhan vien lien quan neu he thong du doan duoc.
-- `alert_type`: loai canh bao, vi du `photo_replay`, `phone_screen`, `abnormal_light`.
-- `risk_level`: muc rui ro, vi du `low`, `medium`, `high`.
-- `evidence_path`: anh bang chung trong storage.
-- `status`: trang thai xu ly, vi du `open`, `reviewed`, `dismissed`.
-- `created_at`: thoi diem phat sinh.
+- `id`: khóa chính UUID.
+- `device_id`: kiosk/camera phát sinh cảnh báo.
+- `employee_id`: nhân viên liên quan nếu hệ thống dự đoán được.
+- `alert_type`: loại cảnh báo, ví dụ `photo_replay`, `phone_screen`, `abnormal_light`.
+- `risk_level`: mức rủi ro, ví dụ `low`, `medium`, `high`.
+- `evidence_path`: ảnh bằng chứng trong storage.
+- `status`: trạng thái xử lý, ví dụ `open`, `reviewed`, `dismissed`.
+- `created_at`: thời điểm phát sinh.
 
-Quan he:
+Quan hệ:
 
-- Nhieu `spoofing_alerts` co the thuoc ve mot `kiosk_devices`.
-- Nhieu `spoofing_alerts` co the lien quan mot `employees`.
+- Nhiều `spoofing_alerts` có thể thuộc về một `kiosk_devices`.
+- Nhiều `spoofing_alerts` có thể liên quan một `employees`.
 
-Chi muc:
+Chỉ mục:
 
-- `idx_spoofing_alerts_status`: tang toc man hinh danh sach canh bao can xu ly.
+- `idx_spoofing_alerts_status`: tăng tốc màn hình danh sách cảnh báo cần xử lý.
 
 ### `audit_logs`
 
-Luu nhat ky thao tac quan trong trong he thong.
+Lưu nhật ký thao tác quan trọng trong hệ thống.
 
-Cot quan trong:
+Cột quan trọng:
 
-- `id`: khoa chinh UUID.
-- `actor_id`: nguoi thuc hien thao tac, se lien ket voi bang nguoi dung/admin sau nay.
-- `action`: hanh dong, vi du `approve_attendance_adjustment`, `update_shift_rule`.
-- `target_table`: bang bi tac dong.
-- `target_id`: id ban ghi bi tac dong.
-- `before_data`: du lieu truoc khi thay doi.
-- `after_data`: du lieu sau khi thay doi.
-- `created_at`: thoi diem thao tac.
+- `id`: khóa chính UUID.
+- `actor_id`: người thực hiện thao tác, sẽ liên kết với bảng người dùng/admin sau này.
+- `action`: hành động, ví dụ `approve_attendance_adjustment`, `update_shift_rule`.
+- `target_table`: bảng bị tác động.
+- `target_id`: id bản ghi bị tác động.
+- `before_data`: dữ liệu trước khi thay đổi.
+- `after_data`: dữ liệu sau khi thay đổi.
+- `created_at`: thời điểm thao tác.
 
-Ghi chu:
+Ghi chú:
 
-- Bang nay hien chua co khoa ngoai vi he thong admin/auth se duoc thiet ke sau.
-- Khi them Supabase Auth hoac bang `admin_users`, co the lien ket `actor_id` den bang nguoi dung quan tri.
+- Bảng này hiện chưa có khóa ngoại vì hệ thống admin/auth sẽ được thiết kế sau.
+- Khi thêm Supabase Auth hoặc bảng `admin_users`, có thể liên kết `actor_id` đến bảng người dùng quản trị.
 
-## Luong Du Lieu Chinh
+## Luồng Dữ Liệu Chính
 
-### Dang Ky Khuon Mat
+### Đăng Ký Khuôn Mặt
 
-1. Tao ho so trong `employees`.
-2. Backend goi `conv-facenet` de tao embedding 128 chieu.
-3. Luu embedding vao `face_profiles.embedding`.
-4. Neu co anh goc, luu anh vao Supabase Storage va ghi duong dan vao `face_profiles.image_path`.
+1. Tạo hồ sơ trong `employees`.
+2. Backend gọi `conv-facenet` để tạo embedding 128 chiều.
+3. Lưu embedding vào `face_profiles.embedding`.
+4. Nếu có ảnh gốc, lưu ảnh vào Supabase Storage và ghi đường dẫn vào `face_profiles.image_path`.
 
-### Diem Danh Kiosk
+### Điểm Danh Kiosk
 
-1. Kiosk gui anh len backend.
-2. Backend kiem tra liveness va trich xuat embedding.
-3. Backend so khop voi `face_profiles.embedding`.
-4. Neu hop le, tao/cap nhat `attendance_records`.
-5. Neu nghi van gia mao, tao ban ghi `spoofing_alerts`.
+1. Kiosk gửi ảnh lên backend.
+2. Backend kiểm tra liveness và trích xuất embedding.
+3. Backend so khớp với `face_profiles.embedding`.
+4. Nếu hợp lệ, tạo/cập nhật `attendance_records`.
+5. Nếu nghi vấn giả mạo, tạo bản ghi `spoofing_alerts`.
 
-### Duyet Chinh Sua Cong
+### Duyệt Chỉnh Sửa Công
 
-1. Tao yeu cau trong `attendance_adjustment_requests`.
-2. Admin duyet hoac tu choi.
-3. Neu duyet, cap nhat `attendance_records`.
-4. Ghi thao tac vao `audit_logs`.
+1. Tạo yêu cầu trong `attendance_adjustment_requests`.
+2. Admin duyệt hoặc từ chối.
+3. Nếu duyệt, cập nhật `attendance_records`.
+4. Ghi thao tác vào `audit_logs`.
 
-## Ghi Chu Ve RLS
+## Ghi Chú Về RLS
 
-Tat ca bang da bat Row Level Security. Khi backend dung `service_role` key, backend co the doc/ghi theo logic rieng. Khi frontend truy cap truc tiep Supabase bang anon key, can tao policy rieng truoc khi cho phep doc/ghi.
+Tất cả bảng đã bật Row Level Security. Khi backend dùng `service_role` key, backend có thể đọc/ghi theo logic riêng. Khi frontend truy cập trực tiếp Supabase bằng anon key, cần tạo policy riêng trước khi cho phép đọc/ghi.
