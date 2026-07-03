@@ -16,6 +16,7 @@ class Settings:
     def __init__(self) -> None:
         self.supabase_url = getenv("SUPABASE_URL", "").strip()
         self.supabase_service_role_key = getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        self.supabase_face_images_bucket = getenv("SUPABASE_FACE_IMAGES_BUCKET", "face-images").strip()
 
     def require_supabase(self) -> None:
         missing = []

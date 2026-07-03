@@ -17,6 +17,35 @@
   transform: translateY(-1px);
 }
 
+.test-image-picker {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.2s ease, filter 0.2s ease, transform 0.2s ease;
+}
+
+.test-image-picker:hover {
+  color: var(--icon-accent);
+  filter: drop-shadow(0 8px 10px var(--icon-glow));
+  transform: translateY(-1px) scale(1.04);
+}
+
+.test-image-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .scan-line {
   position: absolute;
   left: 10%;
@@ -193,6 +222,19 @@
   box-shadow: 0 0 0 5px rgba(52, 199, 89, 0.13), var(--shadow);
 }
 
+.kiosk-match-note {
+  margin: 14px 0 0;
+  font-weight: 900;
+}
+
+.kiosk-match-note.success {
+  color: #178a39;
+}
+
+.kiosk-match-note.error {
+  color: #b42318;
+}
+
 .avatar {
   display: grid;
   place-items: center;
@@ -236,8 +278,13 @@
   color: #178a39;
 }
 
+.shift-card .badge.good {
+  background: transparent;
+  padding-inline: 0;
+}
+
 .badge.late {
-  background: rgba(255, 59, 48, 0.18);
+  background: transparent;
   color: #ff6b63;
 }
 

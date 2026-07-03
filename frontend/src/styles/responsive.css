@@ -18,9 +18,25 @@
     min-height: 460px;
   }
   .mode-bar, .admin-header, .camera-header, .table-header { align-items: stretch; flex-direction: column; }
+  .mode-bar {
+    width: 100%;
+    min-height: auto;
+    overflow: visible;
+    padding: 14px;
+  }
+  .header-brand {
+    min-width: 0;
+  }
+  .header-copy,
+  .top-controls {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
   .top-controls {
     align-items: stretch;
     justify-content: stretch;
+    margin-left: 0;
   }
   .account-switch,
   .session-chip,
@@ -107,6 +123,19 @@
   .employee-row > span,
   .employee-row .badge,
   .employee-row .icon-soft { justify-self: start; }
+  .employee-hover-card {
+    grid-template-columns: 1fr;
+  }
+  .employee-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .employee-form-grid label:nth-child(2) {
+    grid-column: span 1;
+  }
+  .employee-row:hover .employee-hover-card,
+  .employee-row:focus-within .employee-hover-card {
+    max-height: 180px;
+  }
 }
 
 @media (max-width: 680px) {
@@ -178,6 +207,8 @@
   }
   .stats-grid, .profile-stats { grid-template-columns: 1fr; }
   .kiosk-actions, .admin-tools, .table-tools, .action-strip { flex-direction: column; align-items: stretch; }
+  .employee-form-grid { grid-template-columns: 1fr; }
+  .employee-form-actions { flex-direction: column-reverse; }
   .mode-switch, .ios-toggle { width: 100%; }
   .camera-card {
     padding: 16px;

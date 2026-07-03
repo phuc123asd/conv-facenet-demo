@@ -1,14 +1,38 @@
 import { useEffect, useState } from "react";
-import { UserRound } from "lucide-react";
+import { ImagePlus, UserRound } from "lucide-react";
 
 import { statusSteps } from "../../data/demoData";
 import { StatusBadge } from "../../components/ui/StatusBadge";
+import { verifyAttendanceImage } from "../../services/attendanceApi";
+import type { AttendanceVerifyResult } from "../../types/attendance";
 
 export function KioskView() {
   const [mode, setMode] = useState<"check-in" | "check-out">("check-in");
   const [step, setStep] = useState(0);
   const [isScanning, setIsScanning] = useState(false);
+  const [testImage, setTestImage] = useState<File | null>(null);
+  const [testImageName, setTestImageName] = useState("");
+  const [verifyResult, setVerifyResult] = useState<AttendanceVerifyResult | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
   const current = statusSteps[step];
+  const statusTitle = verifyError
+    ? "Không xác thực được"
+    : verifyResult?.matched
+      ? "Xác thực thành công"
+      : verifyResult && !verifyResult.matched
+        ? "Chưa đủ tin cậy"
+        : testImageName
+          ? "Đã chọn ảnh test"
+          : current.title;
+  const statusHint = verifyError
+    ? verifyError
+    : verifyResult?.matched
+      ? verifyResult.employee?.full_name ?? "Đã ghi nhận điểm danh"
+      : verifyResult && !verifyResult.matched
+        ? verifyResult.reason ?? "Vui lòng thử ảnh rõ hơn"
+        : testImageName
+          ? testImageName
+          : current.hint;
 
   useEffect(() => {
     if (isScanning) return;
@@ -16,7 +40,26 @@ export function KioskView() {
     return () => window.clearInterval(id);
   }, [isScanning]);
 
-  const runScan = () => {
+  const runScan = async () => {
+    if (testImage) {
+      setIsScanning(true);
+      setStep(2);
+      setVerifyError(null);
+      setVerifyResult(null);
+
+      try {
+        const result = await verifyAttendanceImage(testImage, mode);
+        setVerifyResult(result);
+        setStep(result.matched ? 3 : 1);
+      } catch (caught) {
+        setVerifyError(caught instanceof Error ? caught.message : "Không chấm công được bằng ảnh.");
+        setStep(1);
+      } finally {
+        setIsScanning(false);
+      }
+      return;
+    }
+
     setIsScanning(true);
     statusSteps.forEach((_, i) => {
       window.setTimeout(() => setStep(i), i * 900);
@@ -40,6 +83,21 @@ export function KioskView() {
           </div>
 
           <div className={`camera-frame ${isScanning ? "scanning" : ""}`} data-step={step}>
+            <label className="test-image-picker" title="Chọn ảnh để test điểm danh">
+              <ImagePlus size={18} />
+              <input
+                accept="image/*"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  setTestImage(file);
+                  setTestImageName(file?.name ?? "");
+                  setVerifyResult(null);
+                  setVerifyError(null);
+                }}
+                type="file"
+              />
+            </label>
+
             {/* Scan line */}
             <div className="scan-line" />
 
@@ -54,8 +112,8 @@ export function KioskView() {
             {/* Status bar */}
             <div className="camera-footer">
               <span className="status-dot" />
-              <strong>{current.title}</strong>
-              <small>{current.hint}</small>
+              <strong>{statusTitle}</strong>
+              <small>{statusHint}</small>
             </div>
           </div>
 
@@ -69,19 +127,28 @@ export function KioskView() {
               </button>
             </div>
             <button className="primary-action" disabled={isScanning} onClick={runScan} type="button">
-              {isScanning ? "Đang quét..." : "Mô phỏng nhận diện"}
+              {isScanning ? "Đang xử lý..." : testImage ? "Chấm công bằng ảnh" : "Mô phỏng nhận diện"}
             </button>
           </div>
         </article>
 
         <aside className="person-panel">
-          <article className={`greeting-card card ${step === 3 ? "active" : ""}`}>
+          <article className={`greeting-card card ${verifyResult?.matched || step === 3 ? "active" : ""}`}>
             <div className="avatar avatar-large">
               <UserRound size={50} />
             </div>
-            <p className="eyebrow">Xác thực thành công</p>
-            <h2>Xin chào, Nguyễn Văn A!</h2>
-            <p className="muted">Product Operations · NV-0248</p>
+            <p className="eyebrow">{verifyResult?.matched || step === 3 ? "Xác thực thành công" : "Đang chờ xác thực"}</p>
+            <h2>{verifyResult?.matched ? `Xin chào, ${verifyResult.employee?.full_name}!` : "Chọn ảnh để test"}</h2>
+            <p className="muted">
+              {verifyResult?.matched
+                ? `${verifyResult.employee?.department ?? "Chưa cập nhật"} · ${verifyResult.employee?.employee_code}`
+                : testImageName || "Chưa có ảnh điểm danh"}
+            </p>
+            {verifyResult && !verifyResult.matched && (
+              <p className={`kiosk-match-note ${verifyResult.matched ? "success" : "error"}`}>
+                {verifyResult.reason}
+              </p>
+            )}
           </article>
 
           <article className="shift-card card">

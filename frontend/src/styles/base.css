@@ -112,11 +112,64 @@ h3 {
   z-index: 20;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 14px 16px 14px 22px;
+  justify-content: flex-start;
+  gap: 14px;
+  width: 76px;
+  min-height: 76px;
+  overflow: hidden;
+  padding: 15px;
   border-radius: 28px;
   box-shadow: 0 18px 40px -32px rgba(0, 0, 0, 0.25);
+  transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.28s ease, padding 0.28s ease;
+}
+
+.mode-bar:hover,
+.mode-bar:focus-within {
+  width: 100%;
+  padding: 14px 16px 14px 15px;
+  box-shadow: 0 26px 70px -38px rgba(0, 0, 0, 0.36), 0 10px 26px -18px rgba(0, 0, 0, 0.16);
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: max-content;
+}
+
+.header-logo {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  color: var(--icon-accent);
+  filter: drop-shadow(0 8px 10px var(--icon-glow));
+  transition: transform 0.22s ease, filter 0.22s ease;
+}
+
+.mode-bar:hover .header-logo,
+.mode-bar:focus-within .header-logo {
+  transform: translateY(-1px) scale(1.04);
+  filter: drop-shadow(0 12px 14px var(--icon-glow));
+}
+
+.header-copy,
+.top-controls {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-8px);
+  transition: opacity 0.2s ease, transform 0.24s ease;
+}
+
+.mode-bar:hover .header-copy,
+.mode-bar:focus-within .header-copy,
+.mode-bar:hover .top-controls,
+.mode-bar:focus-within .top-controls {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
 }
 
 .top-controls {
@@ -124,6 +177,7 @@ h3 {
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+  margin-left: auto;
 }
 
 .account-switch,

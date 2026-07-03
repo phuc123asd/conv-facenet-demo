@@ -457,7 +457,7 @@ kbd {
   min-height: 520px;
   padding: 28px;
   border-radius: 28px;
-  background: linear-gradient(180deg, #ffffff, #f7f7fb);
+  background: var(--card);
   box-shadow: var(--shadow);
   transition: transform 0.24s ease, box-shadow 0.24s ease, background 0.24s ease;
 }
@@ -488,6 +488,13 @@ kbd {
   stroke-width: 1.9;
 }
 
+.avatar-face-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 34px;
+}
+
 .watermark { position: absolute; right: -30px; bottom: -60px; color: rgba(29, 29, 31, 0.05); }
 
 .face-status {
@@ -504,13 +511,220 @@ kbd {
 }
 
 .face-status.good {
-  background: rgba(52, 199, 89, 0.12);
+  background: transparent;
   color: #178a39;
+}
+
+.face-status.pending {
+  background: transparent;
+  color: #a56300;
 }
 
 .face-status:hover {
   transform: translateY(-1px);
   box-shadow: 0 12px 24px -22px rgba(52, 199, 89, 0.6);
+}
+
+.face-registration-trigger {
+  position: relative;
+  z-index: 1;
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  padding: 0;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.face-registration-trigger:hover {
+  color: var(--icon-accent);
+  transform: translateY(-1px) scale(1.05);
+}
+
+.employee-create-form {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+}
+
+.employee-form-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+
+.employee-form-grid label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.employee-form-grid label:nth-child(2) {
+  grid-column: span 2;
+}
+
+.employee-form-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.employee-form-grid input,
+.employee-form-grid select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+  outline: 0;
+  padding: 0 12px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.employee-form-grid input:focus,
+.employee-form-grid select:focus {
+  border-color: rgba(0, 122, 255, 0.44);
+  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.12);
+}
+
+.employee-form-grid input:hover,
+.employee-form-grid select:hover {
+  transform: translateY(-1px);
+}
+
+.employee-form-grid input[readonly] {
+  background: #f5f5f7;
+  color: var(--muted);
+  cursor: default;
+}
+
+.employee-form-grid input[readonly]:hover {
+  transform: none;
+}
+
+.employee-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.employee-create-toast {
+  margin: -4px 0 0;
+  color: #178a39;
+  font-weight: 900;
+}
+
+.face-registration-form {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.registration-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.registration-header strong {
+  display: block;
+  font-size: 18px;
+}
+
+.registration-header span,
+.registration-dropzone span {
+  color: var(--muted);
+}
+
+.registration-mode {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: min(260px, 100%);
+}
+
+.registration-mode button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 900;
+  transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.registration-mode button:hover,
+.registration-mode button.active {
+  border-color: currentColor;
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.registration-dropzone,
+.registration-video {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 132px;
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 20px;
+  color: var(--ink);
+  text-align: center;
+  transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.registration-dropzone:hover,
+.registration-video:hover {
+  border-color: rgba(29, 29, 31, 0.22);
+  transform: translateY(-1px);
+}
+
+.registration-dropzone input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.registration-video.active {
+  color: #178a39;
+}
+
+.registration-note {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.registration-note.error {
+  color: #b42318;
+}
+
+.registration-note.success {
+  color: #178a39;
+}
+
+.registration-submit {
+  width: fit-content;
 }
 
 .profile-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
@@ -532,6 +746,19 @@ kbd {
   margin-top: 18px;
 }
 
+.employee-empty {
+  min-height: 64px;
+  display: grid;
+  place-items: center;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.employee-empty.error {
+  color: #b42318;
+}
+
 .employee-row,
 .approval-row {
   display: grid;
@@ -547,15 +774,30 @@ kbd {
 .employee-row {
   position: relative;
   outline: 0;
+  z-index: 0;
 }
 
 .employee-row:hover,
 .approval-row:hover {
   border-radius: 18px;
-  background: rgba(14, 165, 233, 0.055);
+  background: transparent;
   box-shadow: inset 3px 0 0 rgba(14, 165, 233, 0.34);
   transform: translateX(3px);
   padding-inline: 10px;
+}
+
+.employee-row:hover {
+  z-index: 2;
+}
+
+.employee-row.selected {
+  box-shadow: inset 2px 0 0 rgba(14, 165, 233, 0.42);
+  color: var(--icon-accent);
+}
+
+.employee-row.selected .employee-identity,
+.employee-row.selected .icon-soft {
+  color: var(--ink);
 }
 
 .employee-row:focus-visible {
@@ -572,6 +814,40 @@ kbd {
 .rule-list span,
 .report-card p {
   color: var(--muted);
+}
+
+.employee-face-action {
+  display: inline-flex;
+  width: fit-content;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.employee-row .badge {
+  background: transparent;
+  padding: 0;
+}
+
+.employee-row .badge.good {
+  background: transparent;
+  color: #178a39;
+}
+
+.employee-row .badge.late {
+  background: transparent;
+}
+
+.employee-row .icon-soft {
+  background: transparent;
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.employee-row .icon-soft:hover {
+  background: transparent;
+  color: var(--icon-accent);
+  box-shadow: none;
 }
 
 .employee-identity,
@@ -592,28 +868,29 @@ kbd {
 }
 
 .employee-hover-card {
-  position: absolute;
-  left: 0;
-  top: calc(100% + 10px);
-  z-index: 12;
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(3, max-content);
-  gap: 14px;
-  min-width: min(460px, 72vw);
-  padding: 14px;
-  border: 1px solid rgba(29, 29, 31, 0.08);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 22px 54px -28px rgba(0, 0, 0, 0.36);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  max-height: 0;
+  margin-top: -12px;
+  overflow: hidden;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(-4px);
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transform: translateY(-6px);
+  transition: max-height 0.22s ease, margin-top 0.22s ease, padding 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, opacity 0.18s ease, transform 0.18s ease;
 }
 
 .employee-hover-card div {
   display: grid;
   gap: 4px;
+  min-width: 0;
+  padding: 2px 0;
 }
 
 .employee-hover-card span {
@@ -624,13 +901,35 @@ kbd {
 }
 
 .employee-hover-card strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.hover-card-face {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  padding-bottom: 4px;
+}
+
+.hover-card-face img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 2px solid rgba(14, 165, 233, 0.2);
+  box-shadow: 0 6px 16px -6px var(--icon-glow);
 }
 
 .employee-row:hover .employee-hover-card,
 .employee-row:focus-within .employee-hover-card {
+  max-height: 200px;
+  margin-top: 0;
+  padding: 14px;
+  box-shadow: none;
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(-1px);
 }
 
 .mini-avatar {
@@ -645,6 +944,13 @@ kbd {
 .employee-row:hover .mini-avatar {
   transform: scale(1.08);
   filter: drop-shadow(0 10px 12px var(--icon-glow));
+}
+
+.mini-avatar-face-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 13px;
 }
 
 .approval-actions {
