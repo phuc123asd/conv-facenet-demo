@@ -3,8 +3,8 @@ import { ImagePlus, UserRound } from "lucide-react";
 
 import { statusSteps } from "../../data/demoData";
 import { StatusBadge } from "../../components/ui/StatusBadge";
-import { verifyAttendanceImage } from "../../services/attendanceApi";
-import type { AttendanceVerifyResult } from "../../types/attendance";
+import { verifyAttendanceImage, getAttendanceRecords } from "../../services/attendanceApi";
+import type { AttendanceVerifyResult, AttendanceRecord } from "../../types/attendance";
 
 export function KioskView() {
   const [mode, setMode] = useState<"check-in" | "check-out">("check-in");
@@ -14,6 +14,9 @@ export function KioskView() {
   const [testImageName, setTestImageName] = useState("");
   const [verifyResult, setVerifyResult] = useState<AttendanceVerifyResult | null>(null);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [recentLogs, setRecentLogs] = useState<AttendanceRecord[]>([]);
+  const [kioskAvatarBroken, setKioskAvatarBroken] = useState(false);
+
   const current = statusSteps[step];
   const statusTitle = verifyError
     ? "Không xác thực được"
@@ -46,11 +49,20 @@ export function KioskView() {
       setStep(2);
       setVerifyError(null);
       setVerifyResult(null);
+      setKioskAvatarBroken(false);
 
       try {
         const result = await verifyAttendanceImage(testImage, mode);
         setVerifyResult(result);
         setStep(result.matched ? 3 : 1);
+        
+        if (result.matched && result.employee) {
+          getAttendanceRecords({ employeeId: result.employee.id })
+            .then((data) => {
+              setRecentLogs(data.records.slice(0, 3));
+            })
+            .catch(() => {});
+        }
       } catch (caught) {
         setVerifyError(caught instanceof Error ? caught.message : "Không chấm công được bằng ảnh.");
         setStep(1);
@@ -65,6 +77,46 @@ export function KioskView() {
       window.setTimeout(() => setStep(i), i * 900);
     });
     window.setTimeout(() => setIsScanning(false), 3850);
+  };
+
+  const formatTimeOnly = (tStr: string | null) => {
+    if (!tStr) return "--:--";
+    return tStr.slice(0, 5);
+  };
+
+  const formatTimeISO = (isoString: string | null) => {
+    if (!isoString) return "--:--";
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    } catch {
+      return "--:--";
+    }
+  };
+
+  const getDayOfWeekLabel = (dateStr: string) => {
+    try {
+      const days = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+      const date = new Date(dateStr);
+      return days[date.getDay()];
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const mapStatusLabel = (status: string) => {
+    switch (status) {
+      case "valid":
+        return "Đúng giờ";
+      case "late":
+        return "Đi muộn";
+      case "early":
+        return "Về sớm";
+      default:
+        return status;
+      case "--":
+        return "--";
+    }
   };
 
   return (
@@ -93,6 +145,7 @@ export function KioskView() {
                   setTestImageName(file?.name ?? "");
                   setVerifyResult(null);
                   setVerifyError(null);
+                  setRecentLogs([]);
                 }}
                 type="file"
               />
@@ -135,7 +188,16 @@ export function KioskView() {
         <aside className="person-panel">
           <article className={`greeting-card card ${verifyResult?.matched || step === 3 ? "active" : ""}`}>
             <div className="avatar avatar-large">
-              <UserRound size={50} />
+              {verifyResult?.matched && verifyResult.employee?.face_image_url && !kioskAvatarBroken ? (
+                <img
+                  src={verifyResult.employee.face_image_url}
+                  alt={verifyResult.employee.full_name}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "28px" }}
+                  onError={() => setKioskAvatarBroken(true)}
+                />
+              ) : (
+                <UserRound size={50} />
+              )}
             </div>
             <p className="eyebrow">{verifyResult?.matched || step === 3 ? "Xác thực thành công" : "Đang chờ xác thực"}</p>
             <h2>{verifyResult?.matched ? `Xin chào, ${verifyResult.employee?.full_name}!` : "Chọn ảnh để test"}</h2>
@@ -154,9 +216,17 @@ export function KioskView() {
           <article className="shift-card card">
             <div>
               <p className="eyebrow">Ca làm việc hôm nay</p>
-              <h3>08:00 - 17:00</h3>
+              {verifyResult?.record ? (
+                <h3>
+                  {formatTimeOnly(verifyResult.record.start_time)} - {formatTimeOnly(verifyResult.record.end_time)}
+                </h3>
+              ) : (
+                <h3>--:-- - --:--</h3>
+              )}
             </div>
-            <StatusBadge status="Hợp lệ" label="Đúng giờ" />
+            <StatusBadge 
+              status={verifyResult?.record ? mapStatusLabel(verifyResult.record.status) : "--"} 
+            />
           </article>
 
           <article className="history-card card">
@@ -165,21 +235,27 @@ export function KioskView() {
               <span>Tuần này</span>
             </div>
             <div className="mini-table">
-              <div>
-                <strong>Thứ 2</strong>
-                <span>07:56</span>
-                <em>Check-in</em>
-              </div>
-              <div>
-                <strong>Thứ 3</strong>
-                <span>17:08</span>
-                <em>Check-out</em>
-              </div>
-              <div>
-                <strong>Hôm nay</strong>
-                <span>08:01</span>
-                <em>{mode === "check-in" ? "Check-in" : "Check-out"}</em>
-              </div>
+              {recentLogs.length === 0 ? (
+                <p className="muted" style={{ padding: "8px", fontStyle: "italic", fontSize: "12px" }}>
+                  Chưa có lịch sử điểm danh.
+                </p>
+              ) : (
+                recentLogs.map((log) => {
+                  const day = getDayOfWeekLabel(log.attendance_date);
+                  // Use check_out_at if check-out mode or check_in_at is empty, else check_in_at
+                  const hasCheckOut = Boolean(log.check_out_at);
+                  const displayTime = hasCheckOut ? formatTimeISO(log.check_out_at) : formatTimeISO(log.check_in_at);
+                  const displayType = hasCheckOut ? "Check-out" : "Check-in";
+                  
+                  return (
+                    <div key={log.id}>
+                      <strong>{day}</strong>
+                      <span>{displayTime}</span>
+                      <em>{displayType}</em>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </article>
         </aside>

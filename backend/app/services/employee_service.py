@@ -16,7 +16,9 @@ EMPLOYEE_CODE_RETRY_LIMIT = 25
 EMPLOYEE_SELECT_COLUMNS = (
     "id, auth_user_id, employee_code, full_name, department, "
     "role_title, employment_status, created_at, updated_at, "
-    "face_profiles(id, status, image_path, registered_at)"
+    "face_profiles(id, status, image_path, registered_at), "
+    "shift_assignments(id, shift_id, effective_from, effective_to, work_shifts(*)), "
+    "attendance_records(id, status, liveness_score, check_in_at, check_out_at, attendance_date, work_shifts(*))"
 )
 ROLE_TITLES = {"employee", "admin"}
 
@@ -69,6 +71,80 @@ def _validate_employee_code(employee_code: str) -> None:
 def _format_employee(employee: dict) -> dict:
     face_profiles = employee.get("face_profiles") or []
     face_status, face_image_url = _format_face_info(face_profiles)
+    
+    assignments = employee.get("shift_assignments") or []
+    formatted_assignments = []
+    for assign in assignments:
+        shift_info = assign.get("work_shifts") or {}
+        formatted_assignments.append({
+            "id": assign["id"],
+            "shift_id": assign["shift_id"],
+            "shift_name": shift_info.get("name") or "Chưa rõ",
+            "effective_from": assign["effective_from"],
+            "effective_to": assign.get("effective_to")
+        })
+        
+    records = employee.get("attendance_records") or []
+    assignments = employee.get("shift_assignments") or []
+    
+    from app.services.attendance_service import _is_late, _is_early
+    from datetime import datetime
+    
+    late_count = 0
+    early_count = 0
+    
+    for r in records:
+        shift = r.get("work_shifts")
+        if not shift:
+            r_date = r["attendance_date"]
+            for assign in assignments:
+                eff_from = assign["effective_from"]
+                eff_to = assign.get("effective_to")
+                if eff_from <= r_date and (not eff_to or eff_to >= r_date):
+                    shift = assign.get("work_shifts")
+                    break
+        
+        if shift:
+            start_time_str = shift.get("start_time")
+            end_time_str = shift.get("end_time")
+            late_min = shift.get("late_after_minutes", 10)
+            early_min = shift.get("early_before_minutes", 15)
+            
+            check_in_at_str = r.get("check_in_at")
+            check_out_at_str = r.get("check_out_at")
+            
+            if check_in_at_str:
+                check_in_dt = datetime.fromisoformat(check_in_at_str)
+                if _is_late(check_in_dt, start_time_str, late_min):
+                    late_count += 1
+            if check_out_at_str:
+                check_out_dt = datetime.fromisoformat(check_out_at_str)
+                if _is_early(check_out_dt, end_time_str, early_min):
+                    early_count += 1
+    
+    scores = [r.get("liveness_score") for r in records if r.get("liveness_score") is not None]
+    liveness_pass_pct = 100
+    if scores:
+        liveness_pass_pct = round((sum(1 for s in scores if s >= 0.8) / len(scores)) * 100)
+        
+    stats = {
+        "late_count": late_count,
+        "early_count": early_count,
+        "liveness_pass_pct": liveness_pass_pct,
+        "face_id_updates": len(face_profiles)
+    }
+    
+    formatted_records = []
+    for r in records:
+        formatted_records.append({
+            "id": r["id"],
+            "attendance_date": r["attendance_date"],
+            "check_in_at": r.get("check_in_at"),
+            "check_out_at": r.get("check_out_at"),
+            "status": r.get("status")
+        })
+    formatted_records.sort(key=lambda x: x["attendance_date"], reverse=True)
+        
     return {
         "id": employee["id"],
         "auth_user_id": employee.get("auth_user_id"),
@@ -79,6 +155,9 @@ def _format_employee(employee: dict) -> dict:
         "status": employee.get("employment_status") or DEFAULT_EMPLOYMENT_STATUS,
         "face": face_status,
         "face_image_url": face_image_url,
+        "shift_assignments": formatted_assignments,
+        "stats": stats,
+        "attendance_records": formatted_records,
         "created_at": employee.get("created_at"),
         "updated_at": employee.get("updated_at"),
     }

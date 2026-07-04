@@ -1,3 +1,11 @@
+export type EmployeeShiftAssignment = {
+  id: string;
+  shift_id: string;
+  shift_name: string;
+  effective_from: string;
+  effective_to: string | null;
+};
+
 export type Employee = {
   auth_user_id: string | null;
   code: string;
@@ -9,6 +17,20 @@ export type Employee = {
   name: string;
   role_title: "employee" | "admin";
   status: "active" | "probation" | "inactive";
+  shift_assignments?: EmployeeShiftAssignment[];
+  stats?: {
+    late_count: number;
+    early_count: number;
+    liveness_pass_pct: number;
+    face_id_updates: number;
+  };
+  attendance_records?: Array<{
+    id: string;
+    attendance_date: string;
+    check_in_at: string | null;
+    check_out_at: string | null;
+    status: string;
+  }>;
   updated_at: string | null;
 };
 
