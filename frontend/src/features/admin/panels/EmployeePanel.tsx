@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Edit3,
@@ -39,6 +39,22 @@ const DEPARTMENT_OPTIONS = [
 ];
 
 const ROLE_TITLE_OPTIONS: Array<EmployeeFormState["roleTitle"]> = ["employee", "admin"];
+const ENROLLMENT_STEPS = [
+  "Nhin thang vao camera",
+  "Quay dau sang trai nhe",
+  "Quay dau sang phai nhe",
+  "Chop mat mot lan",
+  "Nguoc hoac cui nhe",
+];
+const ENROLLMENT_STEP_MS = 1600;
+const ENROLLMENT_FRAME_WIDTH = 640;
+const ENROLLMENT_FRAME_QUALITY = 0.78;
+
+type EnrollmentFrame = {
+  file: File;
+  objectUrl: string;
+  step: string;
+};
 
 function generateEmployeeCode(existingEmployees: Employee[] = []) {
   const currentNumbers = existingEmployees
@@ -72,61 +88,39 @@ function createEmployeeFormFromRecord(employee: Employee): EmployeeFormState {
 
 // ─── Avatar helpers ────────────────────────────────────────────────────────────
 
-function getInitials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join("");
-}
+function FaceProfileAvatar({
+  alt,
+  className,
+  fallbackSize,
+  imageClassName,
+  imageUrl,
+}: {
+  alt: string;
+  className: string;
+  fallbackSize: number;
+  imageClassName: string;
+  imageUrl: string | null;
+}) {
+  const [isBroken, setIsBroken] = useState(false);
+  const normalizedImageUrl = imageUrl?.trim() || null;
 
-const AVATAR_PALETTE: [string, string][] = [
-  ["#6366f1", "#818cf8"],
-  ["#0ea5e9", "#38bdf8"],
-  ["#10b981", "#34d399"],
-  ["#f59e0b", "#fbbf24"],
-  ["#ec4899", "#f472b6"],
-  ["#8b5cf6", "#a78bfa"],
-];
+  useEffect(() => {
+    setIsBroken(false);
+  }, [normalizedImageUrl]);
 
-function InitialsAvatar({ name, size = 132 }: { name: string; size?: number }) {
-  const initials = getInitials(name) || "?";
-  const idx = name.charCodeAt(0) % AVATAR_PALETTE.length;
-  const [from, to] = AVATAR_PALETTE[idx];
-  const r = Math.round(size * 0.26);
-  const fontSize = Math.round(size * 0.3);
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      style={{ borderRadius: `${r}px`, display: "block" }}
-      role="img"
-      aria-label={name}
-    >
-      <defs>
-        <linearGradient id={`ig-${idx}-${size}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={from} />
-          <stop offset="100%" stopColor={to} />
-        </linearGradient>
-      </defs>
-      <rect width={size} height={size} rx={r} fill={`url(#ig-${idx}-${size})`} />
-      <text
-        x="50%"
-        y="50%"
-        dominantBaseline="central"
-        textAnchor="middle"
-        fill="white"
-        fontSize={fontSize}
-        fontWeight="700"
-        fontFamily="Inter, system-ui, sans-serif"
-        letterSpacing="2"
-      >
-        {initials}
-      </text>
-    </svg>
+    <div className={className}>
+      {normalizedImageUrl && !isBroken ? (
+        <img
+          src={normalizedImageUrl}
+          alt={alt}
+          className={imageClassName}
+          onError={() => setIsBroken(true)}
+        />
+      ) : (
+        <UserRound size={fallbackSize} />
+      )}
+    </div>
   );
 }
 
@@ -144,7 +138,6 @@ export function EmployeePanel() {
   const [isCreatingEmployee, setIsCreatingEmployee] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [registerMode, setRegisterMode] = useState<"image" | "video">("image");
-  const [avatarBroken, setAvatarBroken] = useState(false);
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
   const [selectedFaceImage, setSelectedFaceImage] = useState<File | null>(null);
@@ -152,7 +145,15 @@ export function EmployeePanel() {
   const [registrationMessage, setRegistrationMessage] = useState<string | null>(null);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
   const [isRegisteringFace, setIsRegisteringFace] = useState(false);
-  const [videoDemoStarted, setVideoDemoStarted] = useState(false);
+  const [isEnrollmentCameraActive, setIsEnrollmentCameraActive] = useState(false);
+  const [isEnrollmentCapturing, setIsEnrollmentCapturing] = useState(false);
+  const [enrollmentStepIndex, setEnrollmentStepIndex] = useState(0);
+  const [enrollmentFrames, setEnrollmentFrames] = useState<EnrollmentFrame[]>([]);
+
+  const enrollmentVideoRef = useRef<HTMLVideoElement | null>(null);
+  const enrollmentCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const enrollmentStreamRef = useRef<MediaStream | null>(null);
+  const enrollmentTimeoutsRef = useRef<number[]>([]);
 
   // Shift assignment states
   const [allShifts, setAllShifts] = useState<Shift[]>([]);
@@ -163,11 +164,113 @@ export function EmployeePanel() {
   const [assignSuccess, setAssignSuccess] = useState<string | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
 
+  const clearEnrollmentTimeouts = useCallback(() => {
+    enrollmentTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    enrollmentTimeoutsRef.current = [];
+  }, []);
+
+  const revokeEnrollmentFrames = useCallback((frames: EnrollmentFrame[]) => {
+    frames.forEach((frame) => URL.revokeObjectURL(frame.objectUrl));
+  }, []);
+
+  const stopEnrollmentCamera = useCallback(() => {
+    clearEnrollmentTimeouts();
+    enrollmentStreamRef.current?.getTracks().forEach((track) => track.stop());
+    enrollmentStreamRef.current = null;
+    if (enrollmentVideoRef.current) {
+      enrollmentVideoRef.current.srcObject = null;
+    }
+    setIsEnrollmentCameraActive(false);
+    setIsEnrollmentCapturing(false);
+  }, [clearEnrollmentTimeouts]);
+
+  const startEnrollmentCamera = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setRegistrationError("Trinh duyet khong ho tro camera.");
+      return false;
+    }
+
+    setRegistrationError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: "user",
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      });
+      enrollmentStreamRef.current = stream;
+      if (enrollmentVideoRef.current) {
+        enrollmentVideoRef.current.srcObject = stream;
+        await enrollmentVideoRef.current.play();
+      }
+      setIsEnrollmentCameraActive(true);
+      return true;
+    } catch (caught) {
+      setRegistrationError(caught instanceof Error ? caught.message : "Khong mo duoc camera.");
+      return false;
+    }
+  }, []);
+
+  const captureEnrollmentFrame = useCallback(
+    (step: string, index: number) =>
+      new Promise<EnrollmentFrame | null>((resolve) => {
+        const video = enrollmentVideoRef.current;
+        const canvas = enrollmentCanvasRef.current;
+        if (!video || !canvas || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+          resolve(null);
+          return;
+        }
+
+        const sourceWidth = video.videoWidth || 640;
+        const sourceHeight = video.videoHeight || 480;
+        const scale = Math.min(1, ENROLLMENT_FRAME_WIDTH / sourceWidth);
+        canvas.width = Math.round(sourceWidth * scale);
+        canvas.height = Math.round(sourceHeight * scale);
+
+        const context = canvas.getContext("2d");
+        if (!context) {
+          resolve(null);
+          return;
+        }
+
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            resolve(null);
+            return;
+          }
+          const file = new File([blob], `enrollment-${index + 1}.jpg`, { type: "image/jpeg" });
+          resolve({
+            file,
+            objectUrl: URL.createObjectURL(blob),
+            step,
+          });
+        }, "image/jpeg", ENROLLMENT_FRAME_QUALITY);
+      }),
+    [],
+  );
+
   useEffect(() => {
     getShifts()
       .then((data) => setAllShifts(data.shifts))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    return () => {
+      stopEnrollmentCamera();
+      setEnrollmentFrames((current) => {
+        revokeEnrollmentFrames(current);
+        return [];
+      });
+      setLocalPreviewUrl((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return null;
+      });
+    };
+  }, [revokeEnrollmentFrames, stopEnrollmentCamera]);
 
   useEffect(() => {
     let isMounted = true;
@@ -201,7 +304,6 @@ export function EmployeePanel() {
   const profileCode = selectedEmployee?.code ?? "N/A";
   const profileDepartment = selectedEmployee?.department ?? "Chưa cập nhật";
   const profileFaceStatus = selectedEmployee?.face ?? "Chưa đăng ký";
-  // Guard: treat empty string as null so broken <img> is never rendered
   const rawFaceImageUrl = selectedEmployee?.face_image_url ?? null;
   const profileFaceImageUrl = rawFaceImageUrl && rawFaceImageUrl.trim() !== "" ? rawFaceImageUrl : null;
   const isEditingEmployee = editingEmployeeId !== null;
@@ -354,8 +456,12 @@ export function EmployeePanel() {
     setSelectedFileName("");
     setRegistrationMessage(null);
     setRegistrationError(null);
-    setVideoDemoStarted(false);
-    setAvatarBroken(false);
+    stopEnrollmentCamera();
+    setEnrollmentStepIndex(0);
+    setEnrollmentFrames((current) => {
+      revokeEnrollmentFrames(current);
+      return [];
+    });
     // revoke any previous local preview
     setLocalPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
   };
@@ -367,19 +473,63 @@ export function EmployeePanel() {
     setSelectedFileName("");
     setRegistrationMessage(null);
     setRegistrationError(null);
-    setVideoDemoStarted(false);
-    setAvatarBroken(false);
+    stopEnrollmentCamera();
+    setEnrollmentStepIndex(0);
+    setEnrollmentFrames((current) => {
+      revokeEnrollmentFrames(current);
+      return [];
+    });
     setLocalPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+  };
+
+  const startEnrollmentCapture = async () => {
+    setRegistrationError(null);
+    setRegistrationMessage(null);
+    setEnrollmentStepIndex(0);
+    setEnrollmentFrames((current) => {
+      revokeEnrollmentFrames(current);
+      return [];
+    });
+
+    const cameraReady = isEnrollmentCameraActive || (await startEnrollmentCamera());
+    if (!cameraReady) return;
+
+    setIsEnrollmentCapturing(true);
+
+    ENROLLMENT_STEPS.forEach((step, index) => {
+      const timeoutId = window.setTimeout(() => {
+        setEnrollmentStepIndex(index);
+        void captureEnrollmentFrame(step, index).then((frame) => {
+          if (!frame) return;
+          setEnrollmentFrames((current) => [...current, frame]);
+          if (index === ENROLLMENT_STEPS.length - 1) {
+            setIsEnrollmentCapturing(false);
+            setRegistrationMessage("Da lay mau eKYC. Kiem tra anh va bam hoan tat dang ky.");
+            setLocalPreviewUrl((prev) => {
+              if (prev) URL.revokeObjectURL(prev);
+              return frame.objectUrl;
+            });
+          }
+        });
+      }, (index + 1) * ENROLLMENT_STEP_MS);
+      enrollmentTimeoutsRef.current.push(timeoutId);
+    });
   };
 
   const submitFaceRegistration = async () => {
     if (!selectedEmployee) return;
-    if (registerMode !== "image") {
-      setRegistrationError("Đăng ký bằng video sẽ làm ở bước sau. Vui lòng chọn ảnh trước.");
+    const uploadFiles = registerMode === "video"
+      ? enrollmentFrames.map((frame) => frame.file)
+      : selectedFaceImage
+        ? [selectedFaceImage]
+        : [];
+    if (registerMode === "image" && !selectedFaceImage) {
+      setRegistrationError("Vui lòng chọn một ảnh khuôn mặt.");
       return;
     }
-    if (!selectedFaceImage) {
-      setRegistrationError("Vui lòng chọn một ảnh khuôn mặt.");
+
+    if (registerMode === "video" && uploadFiles.length < ENROLLMENT_STEPS.length) {
+      setRegistrationError("Vui long hoan thanh day du cac buoc eKYC truoc khi luu.");
       return;
     }
 
@@ -388,8 +538,12 @@ export function EmployeePanel() {
     setRegistrationMessage(null);
 
     try {
-      const result = await registerFaceProfile(selectedEmployee.id, selectedFaceImage);
-      const newImageUrl = result.face_profile?.image_path ?? null;
+      let newImageUrl: string | null = null;
+
+      for (const file of uploadFiles) {
+        const result = await registerFaceProfile(selectedEmployee.id, file);
+        newImageUrl = result.face_profile?.image_path ?? newImageUrl;
+      }
       setEmployees((current) =>
         current.map((employee) =>
           employee.id === selectedEmployee.id ? { ...employee, face: "Đã đăng ký", face_image_url: newImageUrl } : employee,
@@ -398,6 +552,18 @@ export function EmployeePanel() {
       setRegistrationMessage("Đã lưu ảnh lên Supabase Storage và tạo face profile.");
       setSelectedFaceImage(null);
       setSelectedFileName("");
+      setEnrollmentStepIndex(0);
+      setEnrollmentFrames((current) => {
+        revokeEnrollmentFrames(current);
+        return [];
+      });
+      setLocalPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      if (registerMode === "video") {
+        stopEnrollmentCamera();
+      }
       setIsRegistrationOpen(false);
     } catch (caught) {
       setRegistrationError(caught instanceof Error ? caught.message : "Không đăng ký được khuôn mặt.");
@@ -503,25 +669,13 @@ export function EmployeePanel() {
       <div className="employee-grid">
         <article className="id-card">
           <Fingerprint className="watermark" size={260} strokeWidth={1} />
-          <div className="avatar employee-avatar">
-            {/* Priority: local preview blob > Supabase URL > initials avatar */}
-            {localPreviewUrl ? (
-              <img
-                src={localPreviewUrl}
-                alt={profileName}
-                className="avatar-face-img"
-              />
-            ) : profileFaceImageUrl && !avatarBroken ? (
-              <img
-                src={profileFaceImageUrl}
-                alt={profileName}
-                className="avatar-face-img"
-                onError={() => setAvatarBroken(true)}
-              />
-            ) : (
-              <InitialsAvatar name={profileName} size={132} />
-            )}
-          </div>
+          <FaceProfileAvatar
+            alt={profileName}
+            className="avatar employee-avatar"
+            fallbackSize={64}
+            imageClassName="avatar-face-img"
+            imageUrl={localPreviewUrl ?? profileFaceImageUrl}
+          />
           <p className="eyebrow">Employee ID</p>
           <h3>{profileName}</h3>
           <p>{profileCode} · {profileDepartment}</p>
@@ -550,7 +704,14 @@ export function EmployeePanel() {
                 <span>{profileCode}</span>
               </div>
               <div className="registration-mode" role="group" aria-label="Chọn kiểu đăng ký khuôn mặt">
-                <button className={registerMode === "image" ? "active" : ""} onClick={() => setRegisterMode("image")} type="button">
+                <button
+                  className={registerMode === "image" ? "active" : ""}
+                  onClick={() => {
+                    setRegisterMode("image");
+                    stopEnrollmentCamera();
+                  }}
+                  type="button"
+                >
                   <Image size={16} />
                   Ảnh
                 </button>
@@ -582,20 +743,66 @@ export function EmployeePanel() {
                   />
                 </label>
               ) : (
-                <div className={`registration-video ${videoDemoStarted ? "active" : ""}`}>
-                  {videoDemoStarted ? <CheckCircle2 size={34} /> : <PlayCircle size={34} />}
-                  <strong>{videoDemoStarted ? "Đã ghi nhận video demo" : "Quay video demo"}</strong>
-                  <button className="secondary-action" onClick={() => setVideoDemoStarted(true)} type="button">
-                    <Video size={16} />
-                    {videoDemoStarted ? "Quay lại" : "Bắt đầu quay"}
-                  </button>
+                <div className={`registration-video ${enrollmentFrames.length >= ENROLLMENT_STEPS.length ? "active" : ""}`}>
+                  <video
+                    ref={enrollmentVideoRef}
+                    className="enrollment-video-preview"
+                    autoPlay
+                    muted
+                    playsInline
+                  />
+                  <canvas ref={enrollmentCanvasRef} className="enrollment-canvas" aria-hidden="true" />
+                  <div className="enrollment-guide">
+                    {enrollmentFrames.length >= ENROLLMENT_STEPS.length ? <CheckCircle2 size={34} /> : <PlayCircle size={34} />}
+                    <strong>
+                      {isEnrollmentCapturing
+                        ? ENROLLMENT_STEPS[enrollmentStepIndex]
+                        : enrollmentFrames.length >= ENROLLMENT_STEPS.length
+                          ? "Da lay du mau eKYC"
+                          : "Quay eKYC 5 buoc"}
+                    </strong>
+                    <span>{`Mau ${enrollmentFrames.length}/${ENROLLMENT_STEPS.length}`}</span>
+                  </div>
+                  <div className="enrollment-actions">
+                    <button
+                      className="secondary-action"
+                      onClick={isEnrollmentCameraActive ? stopEnrollmentCamera : startEnrollmentCamera}
+                      type="button"
+                    >
+                      <Video size={16} />
+                      {isEnrollmentCameraActive ? "Tat camera" : "Bat camera"}
+                    </button>
+                    <button
+                      className="secondary-action"
+                      disabled={isEnrollmentCapturing}
+                      onClick={startEnrollmentCapture}
+                      type="button"
+                    >
+                      <PlayCircle size={16} />
+                      {isEnrollmentCapturing ? "Dang lay mau..." : "Bat dau eKYC"}
+                    </button>
+                  </div>
+                  {enrollmentFrames.length > 0 && (
+                    <div className="enrollment-thumbs">
+                      {enrollmentFrames.map((frame) => (
+                        <figure key={`${frame.step}-${frame.objectUrl}`}>
+                          <img src={frame.objectUrl} alt={frame.step} />
+                          <figcaption>{frame.step}</figcaption>
+                        </figure>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               {registrationError && <p className="registration-note error">{registrationError}</p>}
               {registrationMessage && <p className="registration-note success">{registrationMessage}</p>}
               <button
                 className="primary-action registration-submit"
-                disabled={isRegisteringFace || registerMode !== "image" || !selectedFaceImage}
+                disabled={
+                  isRegisteringFace ||
+                  (registerMode === "image" && !selectedFaceImage) ||
+                  (registerMode === "video" && enrollmentFrames.length < ENROLLMENT_STEPS.length)
+                }
                 onClick={submitFaceRegistration}
                 type="button"
               >
@@ -621,9 +828,13 @@ export function EmployeePanel() {
                 onClick={() => selectEmployee(employee)}
                 tabIndex={0}
               >
-                <div className="avatar mini-avatar">
-                  <UserRound size={18} />
-                </div>
+                <FaceProfileAvatar
+                  alt={employee.name}
+                  className="avatar mini-avatar"
+                  fallbackSize={18}
+                  imageClassName="mini-avatar-face-img"
+                  imageUrl={employee.face_image_url}
+                />
                 <div className="employee-identity">
                   <strong>{employee.name}</strong>
                 </div>

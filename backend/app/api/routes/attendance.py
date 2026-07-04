@@ -1,6 +1,10 @@
 from fastapi import APIRouter, File, Form, UploadFile
 
-from app.services.attendance_service import verify_attendance_image
+from app.services.attendance_service import (
+    recognize_attendance_face,
+    recognize_attendance_face_batch,
+    verify_attendance_image,
+)
 
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
@@ -17,6 +21,37 @@ async def verify_image_attendance(
         image_bytes=await image.read(),
         mode=mode,
     )
+
+
+@router.post("/recognize-frame")
+async def recognize_camera_frame(
+    image: UploadFile = File(...),
+    mode: str = Form("check-in"),
+):
+    return recognize_attendance_face(
+        filename=image.filename or "camera-frame.jpg",
+        content_type=image.content_type or "application/octet-stream",
+        image_bytes=await image.read(),
+        mode=mode,
+    )
+
+
+@router.post("/recognize-batch")
+async def recognize_camera_batch(
+    images: list[UploadFile] = File(...),
+    mode: str = Form("check-in"),
+):
+    files = [
+        (
+            image.filename or f"camera-frame-{index + 1}.jpg",
+            image.content_type or "application/octet-stream",
+            await image.read(),
+        )
+        for index, image in enumerate(images)
+    ]
+    return recognize_attendance_face_batch(files=files, mode=mode)
+
+
 @router.get("/records")
 def get_records(
     employee_id: str | None = None,

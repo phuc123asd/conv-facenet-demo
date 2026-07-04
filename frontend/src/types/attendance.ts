@@ -1,4 +1,4 @@
-export type AttendanceVerifyResult = {
+export type AttendanceRecognitionResult = {
   best_distance: number | null;
   employee: {
     department: string | null;
@@ -15,6 +15,31 @@ export type AttendanceVerifyResult = {
   reason: string | null;
   second_distance: number | null;
   threshold: number;
+  record: null;
+};
+
+export type AttendanceBatchRecognitionResult = AttendanceRecognitionResult & {
+  average_distance: number | null;
+  average_threshold: number;
+  best_frame_index: number | null;
+  candidates: Array<{
+    average_distance: number;
+    best_distance: number;
+    best_frame_index: number;
+    confidence: number;
+    employee: AttendanceRecognitionResult["employee"];
+    employee_id: string;
+    face_profile_id: string | null;
+    matched_frames: number;
+    sample_count: number;
+  }>;
+  confidence: number;
+  matched_frames: number;
+  sample_count: number;
+  skipped_frames?: number;
+};
+
+export type AttendanceVerifyResult = Omit<AttendanceRecognitionResult, "record"> & {
   record: {
     attendance_date: string;
     check_in_at: string | null;

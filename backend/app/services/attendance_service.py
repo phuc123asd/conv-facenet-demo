@@ -12,6 +12,10 @@ from app.services.supabase_client import get_supabase_client
 
 
 MATCH_THRESHOLD = 0.4
+BATCH_AVERAGE_THRESHOLD = 0.38
+BATCH_MIN_VALID_FRAMES = 4
+BATCH_MIN_MATCHED_FRAMES = 3
+ALLOWED_ATTENDANCE_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
 def _parse_embedding(value: Any) -> list[float]:
@@ -103,6 +107,250 @@ def _upload_evidence_image(employee_id: str, filename: str, content_type: str, i
     except Exception as caught:
         raise HTTPException(status_code=502, detail="Không upload được ảnh minh chứng lên Supabase Storage.") from caught
     return object_path, image_url
+
+
+def recognize_attendance_face(filename: str, content_type: str, image_bytes: bytes, mode: str = "check-in") -> dict:
+    if content_type not in ALLOWED_ATTENDANCE_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail="Dinh dang anh khong duoc ho tro.")
+
+    try:
+        probe_embedding = extract_embedding(image_bytes)
+    except Exception as caught:
+        raise HTTPException(status_code=422, detail="Khong tao duoc embedding tu frame camera.") from caught
+
+    try:
+        response = (
+            get_supabase_client()
+            .table("face_profiles")
+            .select(
+                "id, employee_id, embedding, image_path, "
+                "employees(id, employee_code, full_name, department, role_title)"
+            )
+            .eq("status", "active")
+            .execute()
+        )
+    except Exception as caught:
+        raise HTTPException(status_code=502, detail="Khong lay duoc du lieu khuon mat da dang ky.") from caught
+
+    profiles = response.data or []
+    if not profiles:
+        return {
+            "matched": False,
+            "mode": mode,
+            "filename": filename,
+            "threshold": MATCH_THRESHOLD,
+            "best_distance": None,
+            "second_distance": None,
+            "reason": "Chua co face profile nao de so khop.",
+            "employee": None,
+            "face_profile_id": None,
+            "record": None,
+        }
+
+    scored_profiles = []
+    for profile in profiles:
+        try:
+            registered_embedding = _parse_embedding(profile["embedding"])
+            distance = _cosine_distance(probe_embedding, registered_embedding)
+        except Exception:
+            continue
+        scored_profiles.append((distance, profile))
+
+    if not scored_profiles:
+        raise HTTPException(status_code=422, detail="Khong doc duoc embedding da dang ky.")
+
+    scored_profiles.sort(key=lambda item: item[0])
+    best_distance, best_profile = scored_profiles[0]
+    second_distance = scored_profiles[1][0] if len(scored_profiles) > 1 else None
+    matched = best_distance <= MATCH_THRESHOLD
+    employee = None
+
+    if matched:
+        raw_employee = best_profile.get("employees")
+        if raw_employee:
+            employee = {
+                **raw_employee,
+                "face_image_url": best_profile.get("image_path") or None,
+            }
+
+    return {
+        "matched": matched,
+        "mode": mode,
+        "filename": filename,
+        "threshold": MATCH_THRESHOLD,
+        "best_distance": best_distance,
+        "second_distance": second_distance,
+        "reason": None if matched else "Khong nhan dien chac chan voi nguong hien tai.",
+        "employee": employee,
+        "face_profile_id": best_profile.get("id") if matched else None,
+        "record": None,
+    }
+
+
+def recognize_attendance_face_batch(files: list[tuple[str, str, bytes]], mode: str = "check-in") -> dict:
+    if len(files) < BATCH_MIN_VALID_FRAMES:
+        raise HTTPException(status_code=400, detail=f"Can it nhat {BATCH_MIN_VALID_FRAMES} frame de so khop batch.")
+
+    probe_embeddings: list[tuple[int, str, list[float]]] = []
+    skipped_frames = 0
+
+    for index, (filename, content_type, image_bytes) in enumerate(files):
+        if content_type not in ALLOWED_ATTENDANCE_IMAGE_TYPES:
+            skipped_frames += 1
+            continue
+        try:
+            probe_embeddings.append((index, filename, extract_embedding(image_bytes)))
+        except Exception:
+            skipped_frames += 1
+
+    if len(probe_embeddings) < BATCH_MIN_VALID_FRAMES:
+        raise HTTPException(status_code=422, detail="Khong tao duoc du so embedding tu 5 giay camera.")
+
+    try:
+        response = (
+            get_supabase_client()
+            .table("face_profiles")
+            .select(
+                "id, employee_id, embedding, image_path, "
+                "employees(id, employee_code, full_name, department, role_title)"
+            )
+            .eq("status", "active")
+            .execute()
+        )
+    except Exception as caught:
+        raise HTTPException(status_code=502, detail="Khong lay duoc du lieu khuon mat da dang ky.") from caught
+
+    profiles = response.data or []
+    if not profiles:
+        return {
+            "matched": False,
+            "mode": mode,
+            "threshold": MATCH_THRESHOLD,
+            "average_threshold": BATCH_AVERAGE_THRESHOLD,
+            "sample_count": len(probe_embeddings),
+            "matched_frames": 0,
+            "confidence": 0,
+            "best_distance": None,
+            "second_distance": None,
+            "best_frame_index": None,
+            "reason": "Chua co face profile nao de so khop.",
+            "employee": None,
+            "face_profile_id": None,
+            "record": None,
+            "candidates": [],
+        }
+
+    grouped_profiles: dict[str, dict] = {}
+    for profile in profiles:
+        try:
+            profile_embedding = _parse_embedding(profile["embedding"])
+        except Exception:
+            continue
+
+        employee_id = profile.get("employee_id")
+        if not employee_id:
+            continue
+
+        if employee_id not in grouped_profiles:
+            grouped_profiles[employee_id] = {
+                "employee": profile.get("employees"),
+                "profiles": [],
+            }
+        grouped_profiles[employee_id]["profiles"].append(
+            {
+                "id": profile.get("id"),
+                "image_path": profile.get("image_path"),
+                "embedding": profile_embedding,
+            }
+        )
+
+    if not grouped_profiles:
+        raise HTTPException(status_code=422, detail="Khong doc duoc embedding da dang ky.")
+
+    candidates: list[dict] = []
+    for employee_id, group in grouped_profiles.items():
+        best_per_frame = []
+        for frame_index, filename, probe_embedding in probe_embeddings:
+            distances = [
+                (_cosine_distance(probe_embedding, profile["embedding"]), profile)
+                for profile in group["profiles"]
+            ]
+            distances.sort(key=lambda item: item[0])
+            distance, profile = distances[0]
+            best_per_frame.append(
+                {
+                    "frame_index": frame_index,
+                    "filename": filename,
+                    "distance": distance,
+                    "profile_id": profile["id"],
+                    "image_path": profile["image_path"],
+                }
+            )
+
+        best_per_frame.sort(key=lambda item: item["distance"])
+        matched_frames = sum(1 for item in best_per_frame if item["distance"] <= MATCH_THRESHOLD)
+        average_distance = sum(item["distance"] for item in best_per_frame) / len(best_per_frame)
+        best_distance = best_per_frame[0]["distance"]
+        confidence = max(0.0, min(1.0, 1 - (average_distance / MATCH_THRESHOLD)))
+        confidence = round(confidence * (matched_frames / len(best_per_frame)), 4)
+
+        raw_employee = group["employee"]
+        employee = None
+        if raw_employee:
+            employee = {
+                **raw_employee,
+                "face_image_url": best_per_frame[0]["image_path"] or None,
+            }
+
+        candidates.append(
+            {
+                "employee": employee,
+                "employee_id": employee_id,
+                "face_profile_id": best_per_frame[0]["profile_id"],
+                "best_frame_index": best_per_frame[0]["frame_index"],
+                "best_distance": best_distance,
+                "average_distance": average_distance,
+                "matched_frames": matched_frames,
+                "sample_count": len(best_per_frame),
+                "confidence": confidence,
+            }
+        )
+
+    candidates.sort(key=lambda item: (-item["matched_frames"], item["average_distance"], item["best_distance"]))
+    best_candidate = candidates[0]
+    second_distance = candidates[1]["best_distance"] if len(candidates) > 1 else None
+    matched = (
+        best_candidate["matched_frames"] >= min(BATCH_MIN_MATCHED_FRAMES, len(probe_embeddings))
+        and best_candidate["average_distance"] <= BATCH_AVERAGE_THRESHOLD
+        and best_candidate["best_distance"] <= MATCH_THRESHOLD
+    )
+
+    reason = None
+    if not matched:
+        reason = (
+            f"Chua du nguong batch: {best_candidate['matched_frames']}/{len(probe_embeddings)} frame match, "
+            f"avg={best_candidate['average_distance']:.4f}."
+        )
+
+    return {
+        "matched": matched,
+        "mode": mode,
+        "threshold": MATCH_THRESHOLD,
+        "average_threshold": BATCH_AVERAGE_THRESHOLD,
+        "sample_count": len(probe_embeddings),
+        "skipped_frames": skipped_frames,
+        "matched_frames": best_candidate["matched_frames"] if matched else 0,
+        "confidence": best_candidate["confidence"] if matched else 0,
+        "best_distance": best_candidate["best_distance"],
+        "average_distance": best_candidate["average_distance"],
+        "second_distance": second_distance,
+        "best_frame_index": best_candidate["best_frame_index"] if matched else None,
+        "reason": reason,
+        "employee": best_candidate["employee"] if matched else None,
+        "face_profile_id": best_candidate["face_profile_id"] if matched else None,
+        "record": None,
+        "candidates": candidates[:3],
+    }
 
 
 def verify_attendance_image(filename: str, content_type: str, image_bytes: bytes, mode: str = "check-in") -> dict:

@@ -1,4 +1,10 @@
-import type { AttendanceRecord, AttendanceStats, AttendanceVerifyResult } from "../types/attendance";
+import type {
+  AttendanceBatchRecognitionResult,
+  AttendanceRecognitionResult,
+  AttendanceRecord,
+  AttendanceStats,
+  AttendanceVerifyResult,
+} from "../types/attendance";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -25,6 +31,61 @@ export async function verifyAttendanceImage(image: File, mode: "check-in" | "che
   }
 
   return data as AttendanceVerifyResult;
+}
+
+export async function recognizeAttendanceFrame(image: Blob, mode: "check-in" | "check-out"): Promise<AttendanceRecognitionResult> {
+  const formData = new FormData();
+  formData.append("image", image, "camera-frame.jpg");
+  formData.append("mode", mode);
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/attendance/recognize-frame`, {
+      body: formData,
+      method: "POST",
+    });
+  } catch (caught) {
+    throw new Error("KhÃ´ng káº¿t ná»‘i Ä‘Æ°á»£c backend. Vui lÃ²ng kiá»ƒm tra server API.");
+  }
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail ?? "KhÃ´ng nháº­n diá»‡n Ä‘Æ°á»£c frame camera.");
+  }
+
+  return data as AttendanceRecognitionResult;
+}
+
+export async function recognizeAttendanceBatch(
+  images: Blob[],
+  mode: "check-in" | "check-out",
+): Promise<AttendanceBatchRecognitionResult> {
+  const formData = new FormData();
+  images.forEach((image, index) => {
+    formData.append("images", image, `camera-sample-${index + 1}.jpg`);
+  });
+  formData.append("mode", mode);
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/attendance/recognize-batch`, {
+      body: formData,
+      method: "POST",
+    });
+  } catch (caught) {
+    throw new Error("Khong ket noi duoc backend. Vui long kiem tra server API.");
+  }
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail ?? "Khong nhan dien duoc batch camera.");
+  }
+
+  return data as AttendanceBatchRecognitionResult;
 }
 
 export async function getAttendanceRecords(filters: {
