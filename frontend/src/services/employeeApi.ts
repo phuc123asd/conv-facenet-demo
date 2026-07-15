@@ -98,3 +98,20 @@ export async function registerFaceProfile(employeeId: string, image: File): Prom
 
   return data as FaceProfileRegistrationResponse;
 }
+
+export async function deleteEmployee(employeeId: string): Promise<void> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/employees/${employeeId}`, {
+      method: "DELETE",
+    });
+  } catch (caught) {
+    throw new Error("Không kết nối được backend. Vui lòng kiểm tra server API.");
+  }
+
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.detail ?? "Không xóa được nhân viên.");
+  }
+}

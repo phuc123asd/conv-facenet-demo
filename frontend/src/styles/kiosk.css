@@ -153,18 +153,8 @@
   opacity: 0.6;
 }
 
-.camera-frame.scanning .ring-fill {
-  animation: ring-draw 3.2s ease-out forwards;
-}
-
 @keyframes ring-spin {
   to { transform: rotate(360deg); }
-}
-
-@keyframes ring-draw {
-  0% { stroke-dashoffset: 339; }
-  80% { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: 0; }
 }
 
 .camera-frame[data-step="3"] {
@@ -330,6 +320,26 @@
   color: #ff6b63;
 }
 
+.badge.pending {
+  background: rgba(255, 179, 64, 0.13);
+  color: #a56300;
+}
+
+.shift-card .badge.pending {
+  background: transparent;
+  padding-inline: 0;
+}
+
+.badge.neutral {
+  background: rgba(142, 142, 147, 0.13);
+  color: #8e8e93;
+}
+
+.shift-card .badge.neutral {
+  background: transparent;
+  padding-inline: 0;
+}
+
 .mini-table {
   display: grid;
   gap: 10px;
@@ -343,4 +353,110 @@
   align-items: center;
   padding: 13px 0;
   border-top: 1px solid var(--line);
+}
+
+/* ─────────────────────────────────────────────
+   APPLE FACE ID SUCCESS — Animation Timeline
+   ─────────────────────────────────────────────
+   T+0ms      Container pop-in (spring overshoot)
+   T+0ms      Corner TL starts draw      (300ms)
+   T+80ms     Corner TR starts draw      (300ms)
+   T+160ms    Corner BR starts draw      (300ms)
+   T+240ms    Corner BL starts draw      (300ms)
+   T+150ms    Eyes scale-in 0.85→1       (250ms)
+   T+150ms    Nose stroke draw           (250ms)
+   T+350ms    Mouth stroke draw neutral  (200ms)
+   T+550ms    Mouth morph → smile }      (350ms, overshoot spline)
+   T+550ms    Eyes morph → squint }      synced via SMIL
+   T+550ms    Glow pulse                 (500ms)
+   T+900ms    Hold smile state           (~1200ms)
+   T+2100ms   Fadeout entire overlay     (300ms, ease-in fast)
+   ───────────────────────────────────────────── */
+
+.faceid-success-overlay {
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  transform: translate(-50%, -50%) scale(0.85);
+  width: 90px;
+  height: 90px;
+  background: none;
+  border: none;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* T+0: pop-in | T+550ms: glow | T+2100ms: fadeout */
+  animation:
+    faceid-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+    faceid-glow 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.55s forwards,
+    faceid-fadeout 0.3s cubic-bezier(0.4, 0, 1, 1) 2.1s forwards;
+  z-index: 10;
+}
+
+.faceid-svg {
+  width: 76px;
+  height: 76px;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+}
+
+/* ── T+0ms: Pop-in with spring overshoot ── */
+@keyframes faceid-pop {
+  0%   { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
+}
+
+/* ── T+550ms: Subtle glow pulse synced with smile ── */
+@keyframes faceid-glow {
+  0%   { filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45)); }
+  50%  { filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.12)); }
+  100% { filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45)); }
+}
+
+/* ── T+2100ms: Fadeout — fast ease-in (Apple style: end faster than start) ── */
+@keyframes faceid-fadeout {
+  0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.04); }
+}
+
+/* ── T+0ms: Corner brackets — stagger 80ms, duration 300ms ── */
+.face-corner {
+  stroke-dasharray: 42;
+  stroke-dashoffset: 42;
+}
+.corner-tl { animation: faceid-draw 0.3s cubic-bezier(0.4, 0, 0.2, 1) 0s      forwards; }
+.corner-tr { animation: faceid-draw 0.3s cubic-bezier(0.4, 0, 0.2, 1) 0.08s   forwards; }
+.corner-br { animation: faceid-draw 0.3s cubic-bezier(0.4, 0, 0.2, 1) 0.16s   forwards; }
+.corner-bl { animation: faceid-draw 0.3s cubic-bezier(0.4, 0, 0.2, 1) 0.24s   forwards; }
+
+@keyframes faceid-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* ── T+150ms: Eyes — scale-in 0.85→1, 250ms, spring ── */
+/* (SMIL handles the squint morph at T+550ms inside the <animate> element) */
+.face-eye {
+  opacity: 0;
+  transform-origin: center;
+  transform: scale(0.85);
+  animation: faceid-scalein 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s forwards;
+}
+
+@keyframes faceid-scalein {
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ── T+150ms: Nose — stroke draw, 250ms ── */
+.face-nose {
+  stroke-dasharray: 28;
+  stroke-dashoffset: 28;
+  animation: faceid-draw 0.25s cubic-bezier(0.4, 0, 0.2, 1) 0.15s forwards;
+}
+
+/* ── T+350ms: Mouth — stroke draw neutral line, 200ms ── */
+/* (SMIL handles the smile morph at T+550ms inside the <animate> element) */
+.face-mouth {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: faceid-draw 0.2s cubic-bezier(0.4, 0, 0.2, 1) 0.35s forwards;
 }

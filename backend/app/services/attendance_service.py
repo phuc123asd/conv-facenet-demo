@@ -11,8 +11,8 @@ from app.services.face_engine import extract_embedding
 from app.services.supabase_client import get_supabase_client
 
 
-MATCH_THRESHOLD = 0.4
-BATCH_AVERAGE_THRESHOLD = 0.38
+MATCH_THRESHOLD = 0.35
+BATCH_AVERAGE_THRESHOLD = 0.32
 BATCH_MIN_VALID_FRAMES = 4
 BATCH_MIN_MATCHED_FRAMES = 3
 ALLOWED_ATTENDANCE_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
@@ -332,6 +332,59 @@ def recognize_attendance_face_batch(files: list[tuple[str, str, bytes]], mode: s
             f"avg={best_candidate['average_distance']:.4f}."
         )
 
+    shift_info = None
+    if matched and best_candidate.get("employee_id"):
+        try:
+            vn_tz = timezone(timedelta(hours=7))
+            now_vn = datetime.now(vn_tz)
+            attendance_date = str(now_vn.date())
+            client = get_supabase_client()
+            assign_res = (
+                client.table("shift_assignments")
+                .select("shift_id, work_shifts(*)")
+                .eq("employee_id", best_candidate["employee_id"])
+                .lte("effective_from", attendance_date)
+                .execute()
+            )
+            for assign in (assign_res.data or []):
+                eff_to = assign.get("effective_to")
+                if not eff_to or eff_to >= attendance_date:
+                    shift_details = assign.get("work_shifts")
+                    if shift_details:
+                        start_time_str = shift_details.get("start_time")
+                        end_time_str = shift_details.get("end_time")
+                        late_min = shift_details.get("late_after_minutes", 10)
+
+                        late_seconds = 0
+                        early_seconds = 0
+                        early_before_min = shift_details.get("early_before_minutes", 15)
+
+                        if mode == "check-in" and start_time_str:
+                            shift_start = _parse_time(start_time_str)
+                            shift_start_dt = datetime.combine(now_vn.date(), shift_start, vn_tz)
+                            delta = now_vn - shift_start_dt
+                            if delta.total_seconds() > late_min * 60:
+                                late_seconds = int(delta.total_seconds())
+                        elif mode == "check-out" and end_time_str:
+                            shift_end = _parse_time(end_time_str)
+                            shift_end_dt = datetime.combine(now_vn.date(), shift_end, vn_tz)
+                            delta = shift_end_dt - now_vn
+                            if delta.total_seconds() > early_before_min * 60:
+                                early_seconds = int(delta.total_seconds())
+
+                        shift_info = {
+                            "shift_name": shift_details.get("name"),
+                            "start_time": start_time_str,
+                            "end_time": end_time_str,
+                            "late_after_minutes": late_min,
+                            "early_before_minutes": early_before_min,
+                            "late_seconds": late_seconds,
+                            "early_seconds": early_seconds,
+                        }
+                    break
+        except Exception:
+            pass
+
     return {
         "matched": matched,
         "mode": mode,
@@ -349,6 +402,7 @@ def recognize_attendance_face_batch(files: list[tuple[str, str, bytes]], mode: s
         "employee": best_candidate["employee"] if matched else None,
         "face_profile_id": best_candidate["face_profile_id"] if matched else None,
         "record": None,
+        "shift_info": shift_info,
         "candidates": candidates[:3],
     }
 

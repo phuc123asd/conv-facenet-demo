@@ -18,6 +18,16 @@ export type AttendanceRecognitionResult = {
   record: null;
 };
 
+export type AttendanceShiftInfo = {
+  shift_name: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  late_after_minutes: number;
+  early_before_minutes: number;
+  late_seconds: number;
+  early_seconds: number;
+};
+
 export type AttendanceBatchRecognitionResult = AttendanceRecognitionResult & {
   average_distance: number | null;
   average_threshold: number;
@@ -36,6 +46,7 @@ export type AttendanceBatchRecognitionResult = AttendanceRecognitionResult & {
   confidence: number;
   matched_frames: number;
   sample_count: number;
+  shift_info: AttendanceShiftInfo | null;
   skipped_frames?: number;
 };
 

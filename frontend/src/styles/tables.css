@@ -3,6 +3,9 @@
 .dark-table { overflow: hidden; border-radius: 24px; background: #111113; color: white; box-shadow: 0 24px 70px -40px rgba(0, 0, 0, 0.75); }
 .dark-table .eyebrow, .dark-table .table-head, .dark-table .table-tools, .dark-table select { color: rgba(255, 255, 255, 0.62); }
 .dark-table .badge.good { background: rgba(52, 199, 89, 0.18); color: #50e58c; }
+.dark-table .badge.pending { background: rgba(255, 179, 64, 0.18); color: #ffb340; }
+.dark-table .badge.neutral { background: rgba(142, 142, 147, 0.18); color: #aeaeb2; }
+.dark-table .badge.late { background: rgba(255, 69, 58, 0.18); color: #ff453a; }
 
 .table-header { padding: 22px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
 .table-tools { display: flex; flex-wrap: wrap; gap: 10px; }

@@ -46,13 +46,13 @@ export async function recognizeAttendanceFrame(image: Blob, mode: "check-in" | "
       method: "POST",
     });
   } catch (caught) {
-    throw new Error("KhÃ´ng káº¿t ná»‘i Ä‘Æ°á»£c backend. Vui lÃ²ng kiá»ƒm tra server API.");
+    throw new Error("Không kết nối được backend. Vui lòng kiểm tra server API.");
   }
 
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.detail ?? "KhÃ´ng nháº­n diá»‡n Ä‘Æ°á»£c frame camera.");
+    throw new Error(data.detail ?? "Không nhận diện được frame camera.");
   }
 
   return data as AttendanceRecognitionResult;
@@ -76,13 +76,13 @@ export async function recognizeAttendanceBatch(
       method: "POST",
     });
   } catch (caught) {
-    throw new Error("Khong ket noi duoc backend. Vui long kiem tra server API.");
+    throw new Error("Không kết nối được backend. Vui lòng kiểm tra server API.");
   }
 
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.detail ?? "Khong nhan dien duoc batch camera.");
+    throw new Error(data.detail ?? "Không nhận diện được batch camera.");
   }
 
   return data as AttendanceBatchRecognitionResult;

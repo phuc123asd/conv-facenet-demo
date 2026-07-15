@@ -54,6 +54,8 @@ def update_employee_record(employee_id: str, payload: EmployeeUpdateRequest):
 
 
 @router.post("/{employee_id}/face-profile")
+@router.put("/{employee_id}/face-profile")
+@router.patch("/{employee_id}/face-profile")
 async def create_employee_face_profile(employee_id: str, image: UploadFile = File(...)):
     return register_face_profile(
         employee_id=employee_id,
@@ -61,3 +63,10 @@ async def create_employee_face_profile(employee_id: str, image: UploadFile = Fil
         content_type=image.content_type or "application/octet-stream",
         image_bytes=await image.read(),
     )
+
+
+@router.delete("/{employee_id}", status_code=204)
+def delete_employee_record(employee_id: str):
+    from app.services.employee_service import delete_employee
+    delete_employee(employee_id)
+    return None

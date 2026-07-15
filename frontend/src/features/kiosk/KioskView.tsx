@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, CameraOff, CheckCircle2, RotateCcw, UserRound } from "lucide-react";
+import { Camera, CameraOff, CheckCircle2, Clock, RotateCcw, UserRound } from "lucide-react";
 
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { getAttendanceRecords, recognizeAttendanceBatch, verifyAttendanceImage } from "../../services/attendanceApi";
@@ -23,6 +23,7 @@ export function KioskView() {
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [recentLogs, setRecentLogs] = useState<AttendanceRecord[]>([]);
   const [kioskAvatarBroken, setKioskAvatarBroken] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -44,6 +45,7 @@ export function KioskView() {
     setVerifyResult(null);
     setVerifyError(null);
     setKioskAvatarBroken(false);
+    setProgress(0);
     setPhase("idle");
   }, [clearTimers]);
 
@@ -55,6 +57,7 @@ export function KioskView() {
       videoRef.current.srcObject = null;
     }
     sampleFramesRef.current = [];
+    setProgress(0);
     setCameraStatus("stopped");
     setPhase("idle");
   }, [clearTimers]);
@@ -80,13 +83,19 @@ export function KioskView() {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        try {
+          await videoRef.current.play();
+        } catch (error: any) {
+          if (error.name !== "AbortError") {
+            throw error;
+          }
+        }
       }
       setCameraStatus("active");
       return true;
     } catch (caught) {
       setCameraStatus("denied");
-      setVerifyError(caught instanceof Error ? caught.message : "Khong mo duoc camera.");
+      setVerifyError(caught instanceof Error ? caught.message : "Không mở được camera.");
       return false;
     }
   }, []);
@@ -132,22 +141,41 @@ export function KioskView() {
     setPhase("analyzing");
     setVerifyError(null);
 
+    // Crawl progress slowly from the current progress (approx 90) to 98% while waiting for backend
+    const crawlTimer = window.setInterval(() => {
+      setProgress((prev) => {
+        if (prev < 98) {
+          return prev + 0.8;
+        }
+        return prev;
+      });
+    }, 100);
+    timersRef.current.push(crawlTimer);
+
     try {
       const frames = sampleFramesRef.current.slice();
       if (frames.length < MIN_BATCH_FRAMES) {
-        throw new Error("Khong nhan dien duoc. Vui long thu lai.");
+        throw new Error("Không nhận diện được. Vui lòng thử lại.");
       }
 
       const result = await recognizeAttendanceBatch(frames, mode);
       setBatchResult(result);
       setKioskAvatarBroken(false);
-      setPhase(result.matched ? "ready" : "error");
-      if (!result.matched) {
-        setVerifyError("Khong nhan dien duoc khuon mat. Vui long thu lai.");
+
+      window.clearInterval(crawlTimer);
+      if (result.matched) {
+        setProgress(100);
+        setPhase("ready");
+      } else {
+        setProgress(0);
+        setPhase("error");
+        setVerifyError("Không nhận diện được khuôn mặt. Vui lòng thử lại.");
       }
     } catch (caught) {
+      window.clearInterval(crawlTimer);
+      setProgress(0);
       setPhase("error");
-      setVerifyError(caught instanceof Error ? caught.message : "Khong phan tich duoc mau camera.");
+      setVerifyError(caught instanceof Error ? caught.message : "Không phân tích được mẫu camera.");
     }
   }, [mode]);
 
@@ -163,6 +191,18 @@ export function KioskView() {
     setVerifyError(null);
     setKioskAvatarBroken(false);
     setPhase("guiding");
+    setProgress(0);
+
+    const startTime = Date.now();
+    const progressTimer = window.setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < SAMPLE_DURATION_MS) {
+        const currentProgress = (elapsed / SAMPLE_DURATION_MS) * 90;
+        setProgress(currentProgress);
+      } else {
+        setProgress(90);
+      }
+    }, 30);
 
     const sampleTimer = window.setInterval(() => {
       void captureFrame().then((frame) => {
@@ -173,6 +213,7 @@ export function KioskView() {
 
     const finishTimer = window.setTimeout(() => {
       window.clearInterval(sampleTimer);
+      window.clearInterval(progressTimer);
       void captureFrame().then((frame) => {
         if (frame) {
           sampleFramesRef.current.push(frame);
@@ -181,7 +222,7 @@ export function KioskView() {
       });
     }, SAMPLE_DURATION_MS);
 
-    timersRef.current = [sampleTimer, finishTimer];
+    timersRef.current = [sampleTimer, finishTimer, progressTimer];
   }, [analyzeSampleBatch, cameraStatus, captureFrame, clearTimers, startCamera]);
 
   const confirmAttendance = useCallback(async () => {
@@ -191,7 +232,7 @@ export function KioskView() {
     const evidenceFrame =
       sampleFramesRef.current[evidenceIndex] ?? sampleFramesRef.current[sampleFramesRef.current.length - 1];
     if (!evidenceFrame) {
-      setVerifyError("Khong ghi nhan duoc. Vui long thu lai.");
+      setVerifyError("Không ghi nhận được. Vui lòng thử lại.");
       setPhase("error");
       return;
     }
@@ -204,7 +245,7 @@ export function KioskView() {
       const file = new File([evidenceFrame], "camera-confirmed.jpg", { type: "image/jpeg" });
       const result = await verifyAttendanceImage(file, mode);
       if (!result.matched) {
-        throw new Error(result.reason ?? "Khong xac nhan duoc khuon mat.");
+        throw new Error(result.reason ?? "Không xác nhận được khuôn mặt.");
       }
 
       setVerifyResult(result);
@@ -218,7 +259,7 @@ export function KioskView() {
     } catch (caught) {
       committedRef.current = false;
       setPhase("ready");
-      setVerifyError(caught instanceof Error ? caught.message : "Khong ghi nhan duoc diem danh.");
+      setVerifyError(caught instanceof Error ? caught.message : "Không ghi nhận được điểm danh.");
     }
   }, [batchResult, mode]);
 
@@ -228,28 +269,28 @@ export function KioskView() {
   const frameStep = verifyError ? 1 : phase === "success" ? 3 : batchResult?.matched ? 2 : phase === "guiding" ? 2 : 0;
 
   const statusTitle = useMemo(() => {
-    if (cameraStatus === "starting") return "Dang mo camera";
-    if (cameraStatus === "denied") return "Chua co quyen camera";
-    if (cameraStatus === "unsupported") return "Trinh duyet khong ho tro camera";
-    if (cameraStatus === "stopped") return "Camera dang tat";
-    if (phase === "guiding" || phase === "analyzing") return "Dang xac thuc";
-    if (phase === "ready") return "Da nhan dien";
-    if (phase === "committing") return "Dang ghi nhan";
-    if (phase === "success") return "Da cham cong thanh cong";
-    if (phase === "error") return "Khong nhan dien duoc";
-    return "San sang diem danh";
+    if (cameraStatus === "starting") return "Đang mở camera";
+    if (cameraStatus === "denied") return "Chưa có quyền camera";
+    if (cameraStatus === "unsupported") return "Trình duyệt không hỗ trợ camera";
+    if (cameraStatus === "stopped") return "Camera đang tắt";
+    if (phase === "guiding" || phase === "analyzing") return "Đang xác thực";
+    if (phase === "ready") return "Đã nhận diện";
+    if (phase === "committing") return "Đang ghi nhận";
+    if (phase === "success") return "Đã chấm công thành công";
+    if (phase === "error") return "Không nhận diện được";
+    return "Sẵn sàng điểm danh";
   }, [cameraStatus, phase]);
 
   const statusHint = useMemo(() => {
     if (verifyError) return verifyError;
-    if (phase === "guiding" || phase === "analyzing") return "Vui long nhin vao camera va giu khuon mat trong khung.";
+    if (phase === "guiding" || phase === "analyzing") return "Vui lòng nhìn vào camera và giữ khuôn mặt trong khung.";
     if (phase === "ready" && batchResult?.employee) {
-      return `${batchResult.employee.full_name}. Vui long bam xac nhan de cham cong.`;
+      return `${batchResult.employee.full_name}. Vui lòng bấm xác nhận để chấm công.`;
     }
-    if (phase === "success") return verifyResult?.employee?.full_name ?? "Da ghi nhan diem danh";
-    if (cameraStatus === "active") return "Bam bat dau de diem danh bang khuon mat.";
-    if (cameraStatus === "denied") return "Hay cap quyen camera tren trinh duyet";
-    return "Bat camera de diem danh bang khuon mat";
+    if (phase === "success") return verifyResult?.employee?.full_name ?? "Đã ghi nhận điểm danh";
+    if (cameraStatus === "active") return "Bấm bắt đầu để điểm danh bằng khuôn mặt.";
+    if (cameraStatus === "denied") return "Hãy cấp quyền camera trên trình duyệt";
+    return "Bật camera để điểm danh bằng khuôn mặt";
   }, [batchResult, cameraStatus, phase, verifyError, verifyResult]);
 
   const formatTimeOnly = (tStr: string | null) => {
@@ -269,7 +310,7 @@ export function KioskView() {
 
   const getDayOfWeekLabel = (dateStr: string) => {
     try {
-      const days = ["Chu nhat", "Thu 2", "Thu 3", "Thu 4", "Thu 5", "Thu 6", "Thu 7"];
+      const days = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
       const date = new Date(dateStr);
       return days[date.getDay()];
     } catch {
@@ -280,17 +321,53 @@ export function KioskView() {
   const mapStatusLabel = (status: string) => {
     switch (status) {
       case "valid":
-        return "Dung gio";
+        return "Đúng giờ";
       case "late":
-        return "Di muon";
+        return "Đi muộn";
       case "early":
-        return "Ve som";
+        return "Về sớm";
+      case "no-shift":
+        return "Không có ca";
       case "--":
         return "--";
       default:
         return status;
     }
   };
+
+  const formatLateness = (totalSeconds: number) => {
+    if (totalSeconds <= 0) return null;
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    if (hours > 0 && minutes > 0) return `Muộn ${hours} giờ ${minutes} phút`;
+    if (hours > 0) return `Muộn ${hours} giờ`;
+    if (minutes > 0) return `Muộn ${minutes} phút`;
+    return "Muộn dưới 1 phút";
+  };
+
+  const formatEarlyLeaving = (totalSeconds: number) => {
+    if (totalSeconds <= 0) return null;
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    if (hours > 0 && minutes > 0) return `Về sớm ${hours} giờ ${minutes} phút`;
+    if (hours > 0) return `Về sớm ${hours} giờ`;
+    if (minutes > 0) return `Về sớm ${minutes} phút`;
+    return "Về sớm dưới 1 phút";
+  };
+
+  const activeShiftName = verifyResult?.record?.shift_name ?? batchResult?.shift_info?.shift_name ?? null;
+  const activeStartTime = verifyResult?.record?.start_time ?? batchResult?.shift_info?.start_time ?? null;
+  const activeEndTime = verifyResult?.record?.end_time ?? batchResult?.shift_info?.end_time ?? null;
+  const activeStatus = verifyResult?.record
+    ? verifyResult.record.status
+    : (batchResult?.shift_info
+        ? (mode === "check-in"
+            ? (batchResult.shift_info.late_seconds > 0 ? "late" : "valid")
+            : (batchResult.shift_info.early_seconds > 0 ? "early" : "valid"))
+        : (hasMatched ? "no-shift" : "--"));
+  const deviationLabel = mode === "check-in"
+    ? (batchResult?.shift_info?.late_seconds ? formatLateness(batchResult.shift_info.late_seconds) : null)
+    : (batchResult?.shift_info?.early_seconds ? formatEarlyLeaving(batchResult.shift_info.early_seconds) : null);
 
   return (
     <main className="view-space">
@@ -299,7 +376,7 @@ export function KioskView() {
           <div className="camera-header">
             <div>
               <p className="eyebrow">User Check-in Kiosk</p>
-              <h2>Diem danh khuon mat</h2>
+              <h2>Điểm danh khuôn mặt</h2>
             </div>
             <div className={`live-pill ${cameraStatus === "active" ? "active" : ""}`}>
               <span />
@@ -321,22 +398,54 @@ export function KioskView() {
 
             <div className="scan-line" />
 
-            <div className="liveness-ring">
-              <svg viewBox="0 0 120 120">
-                <circle className="ring-track" cx="60" cy="60" r="54" />
-                <circle className="ring-fill" cx="60" cy="60" r="54" />
-              </svg>
-            </div>
+            <div className="liveness-ring" />
 
-            <div className="camera-footer">
-              <span className="status-dot" />
-              <strong>{statusTitle}</strong>
-              <small>{statusHint}</small>
-            </div>
+
+            {(phase === "ready" || phase === "success") && (
+              <div className="faceid-success-overlay">
+                <svg className="faceid-svg" viewBox="0 0 100 100" fill="none">
+                  {/* ── T+0ms: 4 corner brackets draw (stagger 80ms) ── */}
+                  <path className="face-corner corner-tl" d="M 18 32 V 24 C 18 20.7 20.7 18 24 18 H 32" stroke="#fff" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path className="face-corner corner-tr" d="M 68 18 H 76 C 79.3 18 82 20.7 82 24 V 32" stroke="#fff" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path className="face-corner corner-bl" d="M 18 68 V 76 C 18 79.3 20.7 82 24 82 H 32" stroke="#fff" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path className="face-corner corner-br" d="M 82 68 V 76 C 82 79.3 79.3 82 76 82 H 68" stroke="#fff" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+
+                  {/* ── T+150ms: Eyes scale in, T+550ms: squint (Duchenne) ── */}
+                  {/* All values use M C structure for valid SMIL interpolation */}
+                  <path className="face-eye eye-l" d="M 35 44 C 36 36 40 36 41 44" stroke="#fff" strokeWidth="4.5" strokeLinecap="round">
+                    <animate attributeName="d"
+                      values="M 35 44 C 36 36 40 36 41 44;M 35 44 C 36 36 40 36 41 44;M 35 44 C 36 40 40 40 41 44;M 35 44 C 36.5 39 39.5 39 41 44"
+                      keyTimes="0;0.4;0.85;1"
+                      keySplines="0.25 0.1 0.25 1;0.34 1.56 0.64 1;0.25 0.1 0.25 1"
+                      calcMode="spline" dur="0.9s" begin="0.15s" fill="freeze" />
+                  </path>
+                  <path className="face-eye eye-r" d="M 59 44 C 60 36 64 36 65 44" stroke="#fff" strokeWidth="4.5" strokeLinecap="round">
+                    <animate attributeName="d"
+                      values="M 59 44 C 60 36 64 36 65 44;M 59 44 C 60 36 64 36 65 44;M 59 44 C 60 40 64 40 65 44;M 59 44 C 60.5 39 63.5 39 65 44"
+                      keyTimes="0;0.4;0.85;1"
+                      keySplines="0.25 0.1 0.25 1;0.34 1.56 0.64 1;0.25 0.1 0.25 1"
+                      calcMode="spline" dur="0.9s" begin="0.15s" fill="freeze" />
+                  </path>
+
+                  {/* ── T+150ms: Nose draw ── */}
+                  <path className="face-nose" d="M 50 38 V 52 C 50 55 48 56 46 56" stroke="#fff" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+
+                  {/* ── T+350ms: Mouth draw neutral, T+550ms: morph to smile ── */}
+                  {/* All values use M C C structure for valid SMIL interpolation */}
+                  <path className="face-mouth" d="M 40 66 C 43 66 47 66 50 66 C 53 66 57 66 60 66" stroke="#fff" strokeWidth="4.5" strokeLinecap="round">
+                    <animate attributeName="d"
+                      values="M 40 66 C 43 66 47 66 50 66 C 53 66 57 66 60 66;M 40 66 C 43 66 47 66 50 66 C 53 66 57 66 60 66;M 39 65 C 42 65 44 70 50 70 C 56 70 58 65 61 65;M 38 64 C 42 64 44 73 50 73 C 56 73 58 64 62 64;M 38 64 C 42 64 44 73 50 73 C 56 73 58 64 62 64"
+                      keyTimes="0;0.3;0.65;0.88;1"
+                      keySplines="0.25 0.1 0.25 1;0.34 1.56 0.64 1;0.34 1.56 0.64 1;0.25 0.1 0.25 1"
+                      calcMode="spline" dur="0.85s" begin="0.35s" fill="freeze" />
+                  </path>
+                </svg>
+              </div>
+            )}
           </div>
 
           <div className="kiosk-actions">
-            <div className="ios-toggle" role="group" aria-label="Chon trang thai cham cong">
+            <div className="ios-toggle" role="group" aria-label="Chọn trạng thái chấm công">
               <button className={mode === "check-in" ? "active" : ""} onClick={() => setMode("check-in")} type="button">
                 Check-in
               </button>
@@ -348,7 +457,7 @@ export function KioskView() {
               {batchResult?.matched && phase !== "success" ? (
                 <button className="primary-action" disabled={phase === "committing"} onClick={confirmAttendance} type="button">
                   <CheckCircle2 size={18} />
-                  {phase === "committing" ? "Dang ghi..." : "Xac nhan cham cong"}
+                  {phase === "committing" ? "Đang ghi..." : "Xác nhận chấm công"}
                 </button>
               ) : (
                 <button
@@ -358,17 +467,17 @@ export function KioskView() {
                   type="button"
                 >
                   <Camera size={18} />
-                  {phase === "success" ? "Diem danh tiep" : "Bat dau"}
+                  {phase === "success" ? "Điểm danh tiếp" : "Bắt đầu"}
                 </button>
               )}
               <button className="secondary-action" onClick={cameraStatus === "active" ? stopCamera : startCamera} type="button">
                 {cameraStatus === "active" ? <CameraOff size={18} /> : <Camera size={18} />}
-                {cameraStatus === "active" ? "Tat camera" : "Bat camera"}
+                {cameraStatus === "active" ? "Tắt camera" : "Bật camera"}
               </button>
               {(phase === "ready" || phase === "error" || phase === "success") && (
                 <button className="secondary-action" onClick={resetSession} type="button">
                   <RotateCcw size={18} />
-                  Thu lai
+                  Thử lại
                 </button>
               )}
             </div>
@@ -389,40 +498,46 @@ export function KioskView() {
                 <UserRound size={50} />
               )}
             </div>
-            <p className="eyebrow">{verifyResult?.matched ? "Da ghi nhan" : hasMatched ? "Cho nguoi dung xac nhan" : "Dang cho xac thuc"}</p>
-            <h2>{displayEmployee ? `Xin chao, ${displayEmployee.full_name}!` : "Dung truoc camera"}</h2>
+            <p className="eyebrow">{verifyResult?.matched ? "Đã ghi nhận" : hasMatched ? "Chờ người dùng xác nhận" : "Đang chờ xác thực"}</p>
+            <h2>{displayEmployee ? `Xin chào, ${displayEmployee.full_name}!` : "Đứng trước camera"}</h2>
             <p className="muted">
               {displayEmployee
-                ? `${displayEmployee.department ?? "Chua cap nhat"} - ${displayEmployee.employee_code}`
-                : "Vui long dung truoc camera de diem danh"}
+                ? `${displayEmployee.department ?? "Chưa cập nhật"} - ${displayEmployee.employee_code}`
+                : "Vui lòng đứng trước camera để điểm danh"}
             </p>
-            {batchResult?.matched && <p className="kiosk-match-note success">Da nhan dien khuon mat.</p>}
+            {batchResult?.matched && <p className="kiosk-match-note success">Đã nhận diện khuôn mặt.</p>}
             {verifyError && <p className="kiosk-match-note error">{verifyError}</p>}
           </article>
 
           <article className="shift-card card">
             <div>
-              <p className="eyebrow">Ca lam viec hom nay</p>
-              {verifyResult?.record ? (
+              <p className="eyebrow">{activeShiftName ? `Ca: ${activeShiftName}` : "Ca làm việc hôm nay"}</p>
+              {activeStartTime ? (
                 <h3>
-                  {formatTimeOnly(verifyResult.record.start_time)} - {formatTimeOnly(verifyResult.record.end_time)}
+                  {formatTimeOnly(activeStartTime)} - {formatTimeOnly(activeEndTime)}
                 </h3>
               ) : (
-                <h3>--:-- - --:--</h3>
+                <h3>{hasMatched ? "Không có ca trực" : "--:-- - --:--"}</h3>
+              )}
+              {deviationLabel && !verifyResult?.record && (
+                <p className="kiosk-match-note error" style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Clock size={14} />
+                  {deviationLabel}
+                </p>
               )}
             </div>
-            <StatusBadge status={verifyResult?.record ? mapStatusLabel(verifyResult.record.status) : "--"} />
+            <StatusBadge status={mapStatusLabel(activeStatus)} />
           </article>
 
           <article className="history-card card">
             <div className="section-title">
-              <h3>3 lan gan nhat</h3>
-              <span>Tuan nay</span>
+              <h3>3 lần gần nhất</h3>
+              <span>Tuần này</span>
             </div>
             <div className="mini-table">
               {recentLogs.length === 0 ? (
                 <p className="muted" style={{ padding: "8px", fontStyle: "italic", fontSize: "12px" }}>
-                  Chua co lich su diem danh.
+                  Chưa có lịch sử điểm danh.
                 </p>
               ) : (
                 recentLogs.map((log) => {

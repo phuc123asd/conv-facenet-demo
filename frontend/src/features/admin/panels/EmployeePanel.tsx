@@ -3,20 +3,19 @@ import {
   CheckCircle2,
   Edit3,
   Fingerprint,
-  Image,
   PlayCircle,
   ShieldCheck,
-  Upload,
   UserPlus,
   UserRound,
   Video,
   X,
   CalendarRange,
+  Trash2,
 } from "lucide-react";
 
 import { StatusBadge } from "../../../components/ui/StatusBadge";
 import { TimelineItem } from "../../../components/ui/TimelineItem";
-import { createEmployee, getEmployees, registerFaceProfile, updateEmployee } from "../../../services/employeeApi";
+import { createEmployee, getEmployees, registerFaceProfile, updateEmployee, deleteEmployee as deleteEmployeeApi } from "../../../services/employeeApi";
 import { getShifts, assignShift, deleteAssignment } from "../../../services/shiftApi";
 import type { Employee } from "../../../types/employee";
 import type { Shift } from "../../../types/shift";
@@ -137,7 +136,7 @@ export function EmployeePanel() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreatingEmployee, setIsCreatingEmployee] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
-  const [registerMode, setRegisterMode] = useState<"image" | "video">("image");
+  const [registerMode, setRegisterMode] = useState<"image" | "video">("video");
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
   const [selectedFaceImage, setSelectedFaceImage] = useState<File | null>(null);
@@ -203,12 +202,18 @@ export function EmployeePanel() {
       enrollmentStreamRef.current = stream;
       if (enrollmentVideoRef.current) {
         enrollmentVideoRef.current.srcObject = stream;
-        await enrollmentVideoRef.current.play();
+        try {
+          await enrollmentVideoRef.current.play();
+        } catch (error: any) {
+          if (error.name !== "AbortError") {
+            throw error;
+          }
+        }
       }
       setIsEnrollmentCameraActive(true);
       return true;
     } catch (caught) {
-      setRegistrationError(caught instanceof Error ? caught.message : "Khong mo duoc camera.");
+      setRegistrationError(caught instanceof Error ? caught.message : "Không mở được camera.");
       return false;
     }
   }, []);
@@ -395,6 +400,32 @@ export function EmployeePanel() {
     setCreateMessage(null);
   };
 
+  const handleDeleteEmployee = async (employee: Employee) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa nhân viên "${employee.name}" (${employee.code})?\nHành động này sẽ xóa toàn bộ lịch sử điểm danh, phân ca, và ảnh nhận diện khuôn mặt liên quan.`)) {
+      return;
+    }
+
+    try {
+      await deleteEmployeeApi(employee.id);
+
+      const nextEmployees = employees.filter((emp) => emp.id !== employee.id);
+      setEmployees(nextEmployees);
+
+      if (selectedEmployeeId === employee.id) {
+        setSelectedEmployeeId(nextEmployees[0]?.id ?? null);
+      }
+
+      if (editingEmployeeId === employee.id) {
+        closeCreateForm();
+      }
+
+      alert(`Đã xóa thành công nhân viên "${employee.name}".`);
+    } catch (caught: unknown) {
+      alert(caught instanceof Error ? caught.message : "Lỗi khi xóa nhân viên.");
+    }
+  };
+
+
   const submitEmployeeForm = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -451,7 +482,7 @@ export function EmployeePanel() {
     if (!employee) return;
     setSelectedEmployeeId(employee.id);
     setIsRegistrationOpen(true);
-    setRegisterMode("image");
+    setRegisterMode("video");
     setSelectedFaceImage(null);
     setSelectedFileName("");
     setRegistrationMessage(null);
@@ -654,6 +685,35 @@ export function EmployeePanel() {
           {createError && <p className="registration-note error">{createError}</p>}
           {createMessage && <p className="registration-note success">{createMessage}</p>}
           <div className="employee-form-actions">
+            {isEditingEmployee && (
+              <button
+                className="danger-action"
+                style={{
+                  background: "rgba(255, 77, 79, 0.12)",
+                  color: "#ff4d4f",
+                  border: "1px solid rgba(255, 77, 79, 0.25)",
+                  borderRadius: "8px",
+                  padding: "8px 16px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  marginRight: "auto",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}
+                onClick={(event) => {
+                  event.preventDefault();
+                  const targetEmployee = employees.find(emp => emp.id === editingEmployeeId);
+                  if (targetEmployee) {
+                    handleDeleteEmployee(targetEmployee);
+                  }
+                }}
+                type="button"
+              >
+                <Trash2 size={16} />
+                Xóa nhân viên
+              </button>
+            )}
             <button className="secondary-action" onClick={closeCreateForm} type="button">
               Hủy
             </button>
@@ -703,105 +763,64 @@ export function EmployeePanel() {
                 </div>
                 <span>{profileCode}</span>
               </div>
-              <div className="registration-mode" role="group" aria-label="Chọn kiểu đăng ký khuôn mặt">
-                <button
-                  className={registerMode === "image" ? "active" : ""}
-                  onClick={() => {
-                    setRegisterMode("image");
-                    stopEnrollmentCamera();
-                  }}
-                  type="button"
-                >
-                  <Image size={16} />
-                  Ảnh
-                </button>
-                <button className={registerMode === "video" ? "active" : ""} onClick={() => setRegisterMode("video")} type="button">
-                  <Video size={16} />
-                  Video
-                </button>
-              </div>
-              {registerMode === "image" ? (
-                <label className="registration-dropzone">
-                  <Upload size={22} />
-                  <strong>{selectedFileName || "Chọn ảnh khuôn mặt"}</strong>
-                  <span>JPG, PNG hoặc WebP</span>
-                  <input
-                    accept="image/*"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0] ?? null;
-                      setSelectedFaceImage(file);
-                      setSelectedFileName(file?.name ?? "");
-                      setRegistrationMessage(null);
-                      setRegistrationError(null);
-                      // Show instant local preview in the avatar card
-                      setLocalPreviewUrl((prev) => {
-                        if (prev) URL.revokeObjectURL(prev);
-                        return file ? URL.createObjectURL(file) : null;
-                      });
-                    }}
-                    type="file"
-                  />
-                </label>
-              ) : (
-                <div className={`registration-video ${enrollmentFrames.length >= ENROLLMENT_STEPS.length ? "active" : ""}`}>
-                  <video
-                    ref={enrollmentVideoRef}
-                    className="enrollment-video-preview"
-                    autoPlay
-                    muted
-                    playsInline
-                  />
-                  <canvas ref={enrollmentCanvasRef} className="enrollment-canvas" aria-hidden="true" />
-                  <div className="enrollment-guide">
-                    {enrollmentFrames.length >= ENROLLMENT_STEPS.length ? <CheckCircle2 size={34} /> : <PlayCircle size={34} />}
-                    <strong>
-                      {isEnrollmentCapturing
-                        ? ENROLLMENT_STEPS[enrollmentStepIndex]
-                        : enrollmentFrames.length >= ENROLLMENT_STEPS.length
-                          ? "Da lay du mau eKYC"
-                          : "Quay eKYC 5 buoc"}
-                    </strong>
-                    <span>{`Mau ${enrollmentFrames.length}/${ENROLLMENT_STEPS.length}`}</span>
-                  </div>
-                  <div className="enrollment-actions">
-                    <button
-                      className="secondary-action"
-                      onClick={isEnrollmentCameraActive ? stopEnrollmentCamera : startEnrollmentCamera}
-                      type="button"
-                    >
-                      <Video size={16} />
-                      {isEnrollmentCameraActive ? "Tat camera" : "Bat camera"}
-                    </button>
-                    <button
-                      className="secondary-action"
-                      disabled={isEnrollmentCapturing}
-                      onClick={startEnrollmentCapture}
-                      type="button"
-                    >
-                      <PlayCircle size={16} />
-                      {isEnrollmentCapturing ? "Dang lay mau..." : "Bat dau eKYC"}
-                    </button>
-                  </div>
-                  {enrollmentFrames.length > 0 && (
-                    <div className="enrollment-thumbs">
-                      {enrollmentFrames.map((frame) => (
-                        <figure key={`${frame.step}-${frame.objectUrl}`}>
-                          <img src={frame.objectUrl} alt={frame.step} />
-                          <figcaption>{frame.step}</figcaption>
-                        </figure>
-                      ))}
-                    </div>
-                  )}
+
+              <div className={`registration-video ${enrollmentFrames.length >= ENROLLMENT_STEPS.length ? "active" : ""}`}>
+                <video
+                  ref={enrollmentVideoRef}
+                  className="enrollment-video-preview"
+                  autoPlay
+                  muted
+                  playsInline
+                />
+                <canvas ref={enrollmentCanvasRef} className="enrollment-canvas" aria-hidden="true" />
+                <div className="enrollment-guide">
+                  {enrollmentFrames.length >= ENROLLMENT_STEPS.length ? <CheckCircle2 size={34} /> : <PlayCircle size={34} />}
+                  <strong>
+                    {isEnrollmentCapturing
+                      ? ENROLLMENT_STEPS[enrollmentStepIndex]
+                      : enrollmentFrames.length >= ENROLLMENT_STEPS.length
+                        ? "Đã lấy đủ mẫu eKYC"
+                        : "Quay eKYC 5 bước"}
+                  </strong>
+                  <span>{`Mẫu ${enrollmentFrames.length}/${ENROLLMENT_STEPS.length}`}</span>
                 </div>
-              )}
+                <div className="enrollment-actions">
+                  <button
+                    className="secondary-action"
+                    onClick={isEnrollmentCameraActive ? stopEnrollmentCamera : startEnrollmentCamera}
+                    type="button"
+                  >
+                    <Video size={16} />
+                    {isEnrollmentCameraActive ? "Tắt camera" : "Bật camera"}
+                  </button>
+                  <button
+                    className="secondary-action"
+                    disabled={isEnrollmentCapturing}
+                    onClick={startEnrollmentCapture}
+                    type="button"
+                  >
+                    <PlayCircle size={16} />
+                    {isEnrollmentCapturing ? "Đang lấy mẫu..." : "Bắt đầu eKYC"}
+                  </button>
+                </div>
+                {enrollmentFrames.length > 0 && (
+                  <div className="enrollment-thumbs">
+                    {enrollmentFrames.map((frame) => (
+                      <figure key={`${frame.step}-${frame.objectUrl}`}>
+                        <img src={frame.objectUrl} alt={frame.step} />
+                        <figcaption>{frame.step}</figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                )}
+              </div>
               {registrationError && <p className="registration-note error">{registrationError}</p>}
               {registrationMessage && <p className="registration-note success">{registrationMessage}</p>}
               <button
                 className="primary-action registration-submit"
                 disabled={
                   isRegisteringFace ||
-                  (registerMode === "image" && !selectedFaceImage) ||
-                  (registerMode === "video" && enrollmentFrames.length < ENROLLMENT_STEPS.length)
+                  enrollmentFrames.length < ENROLLMENT_STEPS.length
                 }
                 onClick={submitFaceRegistration}
                 type="button"
@@ -846,7 +865,7 @@ export function EmployeePanel() {
                   }}
                   type="button"
                 >
-                  <StatusBadge status={employee.face === "Đã đăng ký" ? "Hợp lệ" : "Đi muộn"} label={employee.face} />
+                  <StatusBadge status={employee.face === "Đã đăng ký" ? "Đúng giờ" : "Chưa đăng ký"} label={employee.face} />
                 </button>
                 <button
                   className="icon-soft"
@@ -911,7 +930,7 @@ export function EmployeePanel() {
                 <input type="date" value={assignToDate} onChange={(e) => setAssignToDate(e.target.value)} />
               </label>
             </div>
-            
+
             {assignError && <p className="registration-note error">{assignError}</p>}
             {assignSuccess && <p className="registration-note success">{assignSuccess}</p>}
 
@@ -936,8 +955,8 @@ export function EmployeePanel() {
                     <span>
                       {assign.effective_from} → {assign.effective_to || "vô hạn"}
                     </span>
-                    <button 
-                      aria-label="Xóa phân ca" 
+                    <button
+                      aria-label="Xóa phân ca"
                       onClick={() => handleDeleteAssignment(assign.id)}
                       className="icon-soft reject"
                       style={{ background: "transparent", border: "none", cursor: "pointer", padding: "4px" }}
@@ -1005,11 +1024,11 @@ export function EmployeePanel() {
                     minute: "2-digit",
                   })}`;
                 }
-                
+
                 let statusText = "Hợp lệ";
                 if (r.status === "late") statusText = "Đi muộn";
                 else if (r.status === "early") statusText = "Về sớm";
-                
+
                 if (detail) {
                   detail += ` · ${statusText}`;
                 } else {

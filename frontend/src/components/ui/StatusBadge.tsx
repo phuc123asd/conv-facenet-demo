@@ -6,10 +6,35 @@ type StatusBadgeProps = {
 };
 
 export function StatusBadge({ status, label }: StatusBadgeProps) {
-  const isLate = status === "Đi muộn";
+  const normalized = status.trim().toLowerCase();
+
+  let statusClass = "good";
+  if (
+    normalized === "đi muộn" ||
+    normalized === "di muon" ||
+    normalized === "late" ||
+    normalized === "offline"
+  ) {
+    statusClass = "late";
+  } else if (
+    normalized === "về sớm" ||
+    normalized === "ve som" ||
+    normalized === "early" ||
+    normalized === "chưa đăng ký" ||
+    normalized === "chua dang ky" ||
+    normalized === "pending"
+  ) {
+    statusClass = "pending";
+  } else if (
+    normalized === "không có ca" ||
+    normalized === "khong co ca" ||
+    normalized === "--"
+  ) {
+    statusClass = "neutral";
+  }
 
   return (
-    <span className={`badge ${isLate ? "late" : "good"}`}>
+    <span className={`badge ${statusClass}`}>
       <CircleDot size={10} fill="currentColor" />
       {label ?? status}
     </span>

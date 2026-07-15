@@ -71,7 +71,7 @@ def _validate_employee_code(employee_code: str) -> None:
 def _format_employee(employee: dict) -> dict:
     face_profiles = employee.get("face_profiles") or []
     face_status, face_image_url = _format_face_info(face_profiles)
-    
+
     assignments = employee.get("shift_assignments") or []
     formatted_assignments = []
     for assign in assignments:
@@ -83,16 +83,16 @@ def _format_employee(employee: dict) -> dict:
             "effective_from": assign["effective_from"],
             "effective_to": assign.get("effective_to")
         })
-        
+
     records = employee.get("attendance_records") or []
     assignments = employee.get("shift_assignments") or []
-    
+
     from app.services.attendance_service import _is_late, _is_early
     from datetime import datetime
-    
+
     late_count = 0
     early_count = 0
-    
+
     for r in records:
         shift = r.get("work_shifts")
         if not shift:
@@ -103,16 +103,16 @@ def _format_employee(employee: dict) -> dict:
                 if eff_from <= r_date and (not eff_to or eff_to >= r_date):
                     shift = assign.get("work_shifts")
                     break
-        
+
         if shift:
             start_time_str = shift.get("start_time")
             end_time_str = shift.get("end_time")
             late_min = shift.get("late_after_minutes", 10)
             early_min = shift.get("early_before_minutes", 15)
-            
+
             check_in_at_str = r.get("check_in_at")
             check_out_at_str = r.get("check_out_at")
-            
+
             if check_in_at_str:
                 check_in_dt = datetime.fromisoformat(check_in_at_str)
                 if _is_late(check_in_dt, start_time_str, late_min):
@@ -121,19 +121,19 @@ def _format_employee(employee: dict) -> dict:
                 check_out_dt = datetime.fromisoformat(check_out_at_str)
                 if _is_early(check_out_dt, end_time_str, early_min):
                     early_count += 1
-    
+
     scores = [r.get("liveness_score") for r in records if r.get("liveness_score") is not None]
     liveness_pass_pct = 100
     if scores:
         liveness_pass_pct = round((sum(1 for s in scores if s >= 0.8) / len(scores)) * 100)
-        
+
     stats = {
         "late_count": late_count,
         "early_count": early_count,
         "liveness_pass_pct": liveness_pass_pct,
         "face_id_updates": len(face_profiles)
     }
-    
+
     formatted_records = []
     for r in records:
         formatted_records.append({
@@ -144,7 +144,7 @@ def _format_employee(employee: dict) -> dict:
             "status": r.get("status")
         })
     formatted_records.sort(key=lambda x: x["attendance_date"], reverse=True)
-        
+
     return {
         "id": employee["id"],
         "auth_user_id": employee.get("auth_user_id"),
@@ -394,6 +394,25 @@ def register_face_profile(employee_id: str, filename: str, content_type: str, im
     except Exception as caught:
         raise HTTPException(status_code=422, detail="Không tạo được embedding từ ảnh. Vui lòng chọn ảnh rõ khuôn mặt.") from caught
 
+    # 1. Delete old registered face image files from Storage
+    try:
+        client = get_supabase_client()
+        settings = get_settings()
+        face_bucket = client.storage.from_(settings.supabase_face_images_bucket)
+        face_files = face_bucket.list(f"employees/{employee_id}")
+        if face_files:
+            face_paths = [f"employees/{employee_id}/{f['name']}" for f in face_files if f.get("name")]
+            if face_paths:
+                face_bucket.remove(face_paths)
+    except Exception as caught:
+        print(f"Lỗi khi dọn dẹp ảnh cũ trong face-images bucket cho nhân viên {employee_id}: {caught}")
+
+    # 2. Delete old face profile database records
+    try:
+        get_supabase_client().table("face_profiles").delete().eq("employee_id", employee_id).execute()
+    except Exception as caught:
+        print(f"Lỗi khi dọn dẹp face profiles cũ của nhân viên {employee_id}: {caught}")
+
     object_path, image_url = _upload_face_image(employee_id, filename, content_type, image_bytes)
 
     try:
@@ -425,3 +444,65 @@ def register_face_profile(employee_id: str, filename: str, content_type: str, im
             "registered_at": profile.get("registered_at"),
         },
     }
+
+
+def delete_employee(employee_id: str) -> None:
+    client = get_supabase_client()
+    settings = get_settings()
+
+    # 1. Verify employee exists and get auth_user_id
+    try:
+        emp_res = client.table("employees").select("id, auth_user_id").eq("id", employee_id).execute()
+        if not emp_res.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên.")
+        auth_user_id = emp_res.data[0].get("auth_user_id")
+    except HTTPException:
+        raise
+    except Exception as caught:
+        raise HTTPException(status_code=502, detail="Lỗi khi truy vấn thông tin nhân viên.") from caught
+
+    # 2. Delete files from Supabase Storage
+    # A. Delete face registration images
+    try:
+        face_bucket = client.storage.from_(settings.supabase_face_images_bucket)
+        face_files = face_bucket.list(f"employees/{employee_id}")
+        if face_files:
+            face_paths = [f"employees/{employee_id}/{f['name']}" for f in face_files if f.get("name")]
+            if face_paths:
+                face_bucket.remove(face_paths)
+    except Exception as caught:
+        print(f"Lỗi khi xóa ảnh trong face-images bucket cho nhân viên {employee_id}: {caught}")
+
+    # B. Delete attendance evidence images
+    try:
+        evidence_bucket = client.storage.from_("attendance-evidence")
+        evidence_files = evidence_bucket.list(f"attendance/{employee_id}")
+        if evidence_files:
+            evidence_paths = [f"attendance/{employee_id}/{f['name']}" for f in evidence_files if f.get("name")]
+            if evidence_paths:
+                evidence_bucket.remove(evidence_paths)
+    except Exception as caught:
+        print(f"Lỗi khi xóa ảnh trong attendance-evidence bucket cho nhân viên {employee_id}: {caught}")
+
+    # 3. Delete database records in order to satisfy restrict foreign keys
+    try:
+        # A. Delete adjustment requests
+        client.table("attendance_adjustment_requests").delete().eq("employee_id", employee_id).execute()
+
+        # B. Delete attendance records
+        client.table("attendance_records").delete().eq("employee_id", employee_id).execute()
+
+        # C. Delete spoofing alerts
+        client.table("spoofing_alerts").delete().eq("employee_id", employee_id).execute()
+
+        # D. Delete the employee record (which cascades to face_profiles and shift_assignments)
+        client.table("employees").delete().eq("id", employee_id).execute()
+
+        # E. Delete from auth.users if auth_user_id exists
+        if auth_user_id:
+            try:
+                client.auth.admin.delete_user(auth_user_id)
+            except Exception as auth_err:
+                print(f"Lỗi khi xóa tài khoản Auth của nhân viên {employee_id}: {auth_err}")
+    except Exception as caught:
+        raise HTTPException(status_code=502, detail=f"Không thể xóa nhân viên và các dữ liệu liên quan khỏi cơ sở dữ liệu: {caught}") from caught

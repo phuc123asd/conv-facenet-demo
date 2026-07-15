@@ -55,6 +55,7 @@
     justify-content: center;
   }
   .kiosk-grid, .admin-layout, .dashboard-grid, .employee-grid, .management-grid, .report-grid, .settings-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .camera-frame { min-height: 480px; }
   .kiosk-grid {
     gap: 18px;

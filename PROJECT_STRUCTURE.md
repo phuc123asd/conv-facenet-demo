@@ -1,32 +1,63 @@
-# Đánh Giá Cấu Trúc Dự Án (Project Structure Review)
+# Kiến Trúc Hệ Thống (System Architecture)
 
-## Trước Khi Sắp Xếp
+Tài liệu này mô tả chi tiết kiến trúc, cấu trúc thư mục, vai trò của từng thành phần và luồng xử lý dữ liệu trong hệ thống điểm danh bằng khuôn mặt.
 
-- Mã nguồn Web React nằm ở thư mục gốc.
-- Thư mục `conv-facenet` nằm cùng cấp với web, bao gồm cả mã nguồn mô hình, notebook, weights, `.venv` và cấu hình `.git`.
-- Chưa có backend riêng để kết nối ứng dụng web với mô hình nhận diện khuôn mặt.
-- Chưa có cấu trúc (schema) cơ sở dữ liệu cho Supabase.
+---
 
-## Sau Khi Sắp Xếp
+## 🛠️ Cấu Trúc Dự Án (Directory Structure)
 
 ```text
-frontend/                  # Giao diện ứng dụng React hiện tại
-backend/                   # API dịch vụ FastAPI
-face-service/conv-facenet/ # Dự án nhận diện khuôn mặt hiện có
-database/supabase/         # SQL migration quản lý schema cơ sở dữ liệu
+.
+├── frontend/                 # React + Vite: Giao diện Kiosk điểm danh và Admin Portal quản lý
+├── backend/                  # FastAPI: Xử lý nghiệp vụ điểm danh và gọi model nhận diện
+│   └── app/
+│       ├── api/              # Các route API (kiosk, admin, shifts, employees,...)
+│       ├── services/         # Logic kết nối cơ sở dữ liệu, face engine, và ca làm việc
+│       └── main.py           # Điểm khởi chạy của FastAPI
+├── face-service/
+│   └── conv-facenet/         # Mô hình nhận diện khuôn mặt Conv-FaceNet (RetinaFace + ConvNeXt)
+├── database/
+│   └── supabase/             # Bản thiết kế schema SQL và dữ liệu mẫu trên Supabase/PostgreSQL
+└── work/                     # Thư mục chứa log/cache cục bộ
 ```
 
-## Lý Do Sắp Xếp
+---
 
-- Giao diện frontend không nên import trực tiếp mô hình AI để chạy các tác vụ trích xuất nặng.
-- Backend chịu trách nhiệm xử lý nghiệp vụ điểm danh, phân quyền, kết xuất báo cáo và tương tác trực tiếp với cơ sở dữ liệu.
-- Face service giữ mô hình/thư viện nhận dạng độc lập, giúp dễ dàng tách thành microservice GPU riêng biệt khi mở rộng quy mô.
-- Thư mục database migration được thiết kế riêng giúp quản lý phiên bản và theo dõi thay đổi cấu trúc bảng rõ ràng.
+## 🏗️ Vai Trò Của Từng Thành Phần (Component Roles)
 
-## Bước Nâng Cấp Tiếp Theo
+- **`frontend/`**: Giao diện người dùng được tối ưu hóa cho hai đối tượng:
+  - **Kiosk Mode**: Dành cho nhân viên tự check-in/check-out qua camera.
+  - **Admin Portal**: Dành cho quản lý để thêm/sửa/xóa nhân viên, phân ca làm việc, duyệt sửa công, xem lịch sử điểm danh và cấu hình thiết bị.
+- **`backend/`**: Máy chủ API trung gian xử lý toàn bộ logic nghiệp vụ hệ thống. Kết nối trực tiếp với Supabase để thực hiện các thao tác CRUD và điều phối các tác vụ nhận diện khuôn mặt.
+- **`face-service/conv-facenet/`**: Thư viện lõi chứa mô hình AI (RetinaFace dùng làm detector và ConvNeXt dùng làm descriptor). Nhận ảnh đầu vào từ backend, căn chỉnh khuôn mặt, trích xuất đặc trưng (embedding 128 chiều) và tính toán khoảng cách cosine để so khớp.
+- **`database/supabase/`**: Chứa mã SQL migration định nghĩa schema cơ sở dữ liệu trên Supabase/PostgreSQL bao gồm quản lý nhân viên, lịch sử điểm danh, cấu hình ca làm việc, cảnh báo giả mạo (spoofing alerts) và nhật ký hoạt động (audit logs).
 
-1. Thực hiện kết nối hoàn chỉnh backend với Supabase.
-2. Bổ sung các API quản lý nhân viên, ca làm việc và lịch sử điểm danh.
-3. Lưu trữ vector đặc trưng khuôn mặt (face embedding) vào bảng `face_profiles`.
-4. Cập nhật frontend để gọi API backend thay vì sử dụng dữ liệu tĩnh (mock data).
-5. Tách `conv-facenet` thành một service độc lập nếu có nhu cầu sử dụng GPU chuyên dụng hoặc kết nối nhiều thiết bị kiosk điểm danh.
+---
+
+## 🔄 Luồng Xử Lý Điểm Danh (Check-in / Check-out Flow)
+
+Dưới đây là sơ đồ mô tả luồng gửi dữ liệu và xử lý khi nhân viên đứng trước Kiosk để điểm danh:
+
+```text
+  [ Kiosk React ]  ---( Gửi loạt ảnh từ Camera )--->  [ Backend FastAPI ]
+                                                               |
+                                                   ( Trích xuất Embedding )
+                                                               |
+                                                               v
+  [ Supabase DB ]  <---( Truy vấn & So khớp )--------  [ conv-facenet ]
+         |
+  ( Lưu record )
+         |
+         v
+  [ Kiosk React ]  <---( Phản hồi kết quả )-----------  [ Backend FastAPI ]
+```
+
+1. **Gửi dữ liệu:** Kiosk React chụp loạt khung hình (frames) từ webcam và gửi yêu cầu `POST /attendance/recognize-batch` tới Backend FastAPI.
+2. **Trích xuất đặc trưng:** Backend FastAPI gọi module nhận diện `conv-facenet` để thực hiện phát hiện khuôn mặt, căn chỉnh và trích xuất vector đặc trưng (128-dimensional embedding).
+3. **So khớp & Xác thực:** Trọng số mô hình đối sánh vector khuôn mặt trích xuất được với các vector đã lưu trong bảng `face_profiles` trên cơ sở dữ liệu Supabase.
+4. **Lưu trữ & Phản hồi:** Nếu tìm thấy nhân viên khớp dưới ngưỡng cho phép, backend sẽ tiến hành ghi nhận bản ghi điểm danh vào bảng `attendance_records` trên Supabase Database và tải ảnh minh chứng lên Supabase Storage, sau đó trả về kết quả thành công cho Frontend.
+
+---
+
+## 🗄️ Thiết Kế Cơ Sở Dữ Liệu
+Chi tiết về các bảng và quan hệ giữa các thực thể, vui lòng xem tại tài liệu [SCHEMA_RELATIONSHIPS.md](file:///Users/cps/Documents/build-web-data-visualization-plugin-build-2/database/supabase/SCHEMA_RELATIONSHIPS.md).

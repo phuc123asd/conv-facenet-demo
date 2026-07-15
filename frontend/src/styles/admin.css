@@ -213,7 +213,7 @@ kbd {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 18px;
 }
@@ -900,6 +900,16 @@ kbd {
 
 .employee-row .badge.late {
   background: transparent;
+}
+
+.employee-row .badge.pending {
+  background: transparent;
+  color: #a56300;
+}
+
+.employee-row .badge.neutral {
+  background: transparent;
+  color: #8e8e93;
 }
 
 .employee-row .icon-soft {

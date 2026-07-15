@@ -1,96 +1,116 @@
-# Hệ Thống Điểm Danh Bằng Khuôn Mặt (Face Attendance System)
+# Hướng Dẫn Cài Đặt Dự Án (Developer Setup Guide)
 
-Dự án gồm ứng dụng web điểm danh, backend API và module nhận diện khuôn mặt Conv-FaceNet.
+Tài liệu này hướng dẫn chi tiết các bước thiết lập và khởi chạy dự án **Hệ Thống Điểm Danh Bằng Khuôn Mặt (Face Attendance System)** sau khi clone từ repository.
 
-## Cấu Trúc Dự Án
+*Để xem thông tin chi tiết về cấu trúc thư mục, sơ đồ luồng dữ liệu và thiết kế hệ thống, vui lòng tham khảo tài liệu [ARCHITECTURE.md](file:///Users/cps/Documents/build-web-data-visualization-plugin-build-2/ARCHITECTURE.md).*
 
-```text
-.
-├── frontend/                 # React + Vite: Kiosk và Admin Portal
-├── backend/                  # FastAPI: nghiệp vụ điểm danh và API nhận diện
-│   └── app/
-│       ├── api/              # Các route API
-│       ├── services/         # Kết nối face engine, cơ sở dữ liệu, logic điểm danh
-│       └── main.py
-├── face-service/
-│   └── conv-facenet/         # Thư viện/model nhận diện khuôn mặt hiện tại
-├── database/
-│   └── supabase/             # Migration SQL cho Supabase/PostgreSQL
-└── work/                     # Cache và các công cụ (tooling) local
-```
+---
 
-## Vai Trò Từng Phần
+## 🚀 Các Bước Thiết Lập (Step-by-step Setup)
 
-- `frontend/`: Giao diện dành cho kiosk check-in, quản trị viên (admin), nhân viên, quản lý ca làm và báo cáo.
-- `backend/`: API trung gian kết nối frontend, xử lý nghiệp vụ và gọi model nhận diện khuôn mặt.
-- `face-service/conv-facenet/`: Mã nguồn của model Conv-FaceNet, bao gồm bộ phát hiện (detector), bộ trích xuất đặc trưng (descriptor), và trọng số model (weights).
-- `database/supabase/`: Schema cơ sở dữ liệu cloud quản lý nhân viên, thông tin điểm danh, ca làm việc, thiết bị kiosk và nhật ký hệ thống (audit log).
+### Bước 1: Yêu Cầu Hệ Thống (Prerequisites)
+Đảm bảo máy tính của bạn đã được cài đặt sẵn:
+- **Node.js**: Phiên bản `>= 18.x` trở lên.
+- **Python**: Phiên bản `3.10` đến `3.13` (Khuyến nghị dùng `Python 3.10+`).
+- **Git** để clone mã nguồn.
 
-## Luồng Xử Lý
+---
 
-```text
-Frontend React
-  -> Backend FastAPI
-  -> face-service/conv-facenet (Xử lý nhận diện)
-  -> Supabase PostgreSQL (Truy vấn / Lưu trữ dữ liệu)
-  -> Supabase Storage (Lưu trữ ảnh check-in)
-```
+### Bước 2: Thiết Lập Cơ Sở Dữ Liệu & Storage (Supabase)
+Hệ thống sử dụng Supabase làm cơ sở dữ liệu chính và lưu trữ hình ảnh.
 
-## Chạy Frontend
+1. **Tạo tài khoản và dự án mới:**
+   - Truy cập [Supabase](https://supabase.com/) và tạo một project mới.
+   - Nhớ lưu lại **Project URL** và **service_role API key** (dùng cho backend).
 
-Chạy các lệnh sau trong thư mục `frontend`:
+2. **Khởi tạo Schema cơ sở dữ liệu:**
+   - Truy cập vào mục **SQL Editor** trên Supabase Dashboard.
+   - Mở file [001_initial_schema.sql](file:///Users/cps/Documents/build-web-data-visualization-plugin-build-2/database/supabase/001_initial_schema.sql), sao chép toàn bộ nội dung và chạy (Run) trên SQL Editor để khởi tạo các bảng, quan hệ khóa ngoại và index.
+   - *(Tùy chọn)* Nếu muốn nạp dữ liệu ca làm việc và nhân viên mẫu để test nhanh, hãy chạy tiếp nội dung trong file [002_seed_demo_data.sql](file:///Users/cps/Documents/build-web-data-visualization-plugin-build-2/database/supabase/002_seed_demo_data.sql).
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+3. **Cấu hình Storage Buckets:**
+   - Đi tới mục **Storage** trên Supabase Dashboard.
+   - Tạo mới 2 buckets với quyền truy cập công khai (**Public**):
+     - `face-images` (Lưu ảnh đăng ký khuôn mặt gốc của nhân viên)
+     - `attendance-evidence` (Lưu ảnh minh chứng lúc chụp điểm danh)
 
-Mặc định, ứng dụng web sẽ chạy tại:
+---
 
-```text
-http://127.0.0.1:5173/
-```
+### Bước 3: Thiết Lập & Khởi Chạy Backend
+Backend FastAPI chịu trách nhiệm giao tiếp giữa Frontend, cơ sở dữ liệu Supabase, và chạy mô hình nhận diện khuôn mặt Conv-FaceNet.
 
-## Chạy Backend
+1. **Di chuyển vào thư mục backend:**
+   ```bash
+   cd backend
+   ```
 
-Chạy các lệnh sau để thiết lập môi trường ảo và khởi chạy backend FastAPI:
+2. **Tạo và kích hoạt môi trường ảo Python (Venv):**
+   ```bash
+   # macOS / Linux
+   python -m venv .venv
+   source .venv/bin/activate
 
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-pip install -r ../face-service/conv-facenet/requirements.txt
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
+   # Windows (CMD)
+   python -m venv .venv
+   .venv\Scripts\activate
+   ```
 
-Kiểm tra trạng thái backend:
+3. **Cài đặt thư viện phụ thuộc:**
+   Cài đặt cả các thư viện của backend và module nhận diện khuôn mặt:
+   ```bash
+   pip install -r requirements.txt
+   pip install -r ../face-service/conv-facenet/requirements.txt
+   ```
 
-- Kiểm tra sức khỏe hệ thống: `GET http://127.0.0.1:8000/health`
-- Đối sánh hai khuôn mặt: `POST http://127.0.0.1:8000/face/verify`
-- Trích xuất đặc trưng khuôn mặt: `POST http://127.0.0.1:8000/face/embedding`
+4. **Cấu hình file môi trường (.env):**
+   - Tạo file `.env` từ file ví dụ:
+     ```bash
+     cp .env.example .env
+     ```
+   - Mở tệp `.env` vừa tạo và cập nhật các thông số tương ứng của dự án Supabase của bạn:
+     ```env
+     SUPABASE_URL=https://your-project-ref.supabase.co
+     SUPABASE_SERVICE_ROLE_KEY=replace-with-your-service-role-key
+     SUPABASE_FACE_IMAGES_BUCKET=face-images
+     ```
 
-## Cơ Sở Dữ Liệu (Database)
+5. **Tải trọng số mô hình (Model Weights):**
+   - Bạn **không cần tải thủ công** các tệp mô hình lớn (tránh phình to Git repo).
+   - Ở lần chạy đầu tiên (chạy test hoặc khởi động server), module `convfacenet` sẽ tự động phát hiện nếu thiếu trọng số và tải trực tiếp các tệp `face_detector.pt` và `face_descriptor.pt` từ Google Drive về đúng thư mục cục bộ `face-service/conv-facenet/model_weights/final_weights/`.
 
-Các file cấu hình migration của Supabase được đặt tại:
+6. **Khởi chạy Backend API Server:**
+   ```bash
+   uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+   ```
+   Kiểm tra backend đã hoạt động thành công tại: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health) (kết quả hiển thị `{"status":"ok"}`).
 
-```text
-database/supabase/001_initial_schema.sql
-```
+---
 
-Các bảng dữ liệu chính bao gồm:
+### Bước 4: Thiết Lập & Khởi Chạy Frontend
+Frontend được viết bằng React, TypeScript và Vite, giao tiếp mặc định tới Backend tại địa chỉ `http://127.0.0.1:8000`.
 
-- `employees` (Thông tin nhân viên)
-- `face_profiles` (Thông tin vector khuôn mặt)
-- `work_shifts` (Ca làm việc)
-- `shift_assignments` (Phân ca làm việc)
-- `kiosk_devices` (Thiết bị Kiosk đăng ký)
-- `attendance_records` (Lịch sử điểm danh)
-- `attendance_adjustment_requests` (Yêu cầu điều chỉnh công)
-- `spoofing_alerts` (Cảnh báo giả mạo)
-- `audit_logs` (Nhật ký hoạt động hệ thống)
+1. **Di chuyển vào thư mục frontend:**
+   ```bash
+   cd ../frontend
+   ```
 
-## Ghi Chú
+2. **Cài đặt các gói Node.js:**
+   ```bash
+   npm install
+   ```
 
-`conv-facenet` hiện đang hoạt động như một package Python độc lập. Để các đường dẫn chứa trọng số (weights) cũ hoạt động chính xác, Backend sẽ thêm đường dẫn `face-service/conv-facenet/src` vào import path của hệ thống và chạy model trực tiếp từ thư mục `face-service/conv-facenet`.
+3. **Khởi chạy Vite Development Server:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Trực quan hóa ứng dụng:**
+   - Ứng dụng Web sẽ được khởi chạy tại: [http://127.0.0.1:5173/](http://127.0.0.1:5173/)
+   - Bạn có thể chuyển đổi linh hoạt giữa giao diện **Kiosk điểm danh** và **Admin Portal** bằng thanh điều hướng góc trên màn hình.
+
+---
+
+## 🔍 Kiểm Tra Hệ Thống Sau Khi Cài Đặt (Verification)
+- Truy cập trang Kiosk, bấm **Bật camera** để hệ thống kết nối với webcam của bạn.
+- Bấm **Bắt đầu** để trải nghiệm quá trình tự động trích xuất khuôn mặt, so khớp và ghi nhận điểm danh.
+- Truy cập mục **Quản lý nhân viên** trong Admin Portal để thêm mới, sửa thông tin nhân viên, hoặc đăng ký khuôn mặt mới (eKYC 5 bước quay camera).
