@@ -45,7 +45,7 @@ function App() {
         view={view}
       />
 
-      {view === "kiosk" ? <KioskView /> : <AdminView />}
+      {view === "kiosk" ? <KioskView /> : <AdminView reviewerId={session.user.id} />}
     </div>
   );
 }

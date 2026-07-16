@@ -301,6 +301,9 @@
   .table-row { min-width: 760px; }
   .approval-row { grid-template-columns: 1fr; }
   .approval-actions { justify-content: flex-start; }
+  .adjustment-form-grid { grid-template-columns: 1fr; }
+  .adjustment-form-grid .adjustment-record-field,
+  .adjustment-form-grid .adjustment-reason-field { grid-column: auto; }
 }
 
 @media (max-width: 420px) {

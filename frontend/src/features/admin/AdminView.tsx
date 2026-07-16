@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Bell, Search, UserRound } from "lucide-react";
 
 import type { AdminPanel } from "../../types/navigation";
+import type { AttendanceRecord } from "../../types/attendance";
 import { AdminSidebar } from "./AdminSidebar";
 import {
   ApprovalPanel,
@@ -15,8 +16,18 @@ import {
   ShiftPanel,
 } from "./AdminPanels";
 
-export function AdminView() {
+type AdminViewProps = {
+  reviewerId: string;
+};
+
+type AdjustmentDraft = {
+  record: AttendanceRecord;
+  suggestedReason?: string;
+};
+
+export function AdminView({ reviewerId }: AdminViewProps) {
   const [panel, setPanel] = useState<AdminPanel>("dashboard");
+  const [adjustmentDraft, setAdjustmentDraft] = useState<AdjustmentDraft | null>(null);
   const titles: Record<AdminPanel, string> = {
     dashboard: "Bảng điều khiển",
     employees: "Nhân viên & khuôn mặt",
@@ -58,8 +69,21 @@ export function AdminView() {
           {panel === "dashboard" && <DashboardPanel />}
           {panel === "employees" && <EmployeePanel />}
           {panel === "shifts" && <ShiftPanel />}
-          {panel === "approvals" && <ApprovalPanel />}
-          {panel === "history" && <HistoryPanel />}
+          {panel === "approvals" && (
+            <ApprovalPanel
+              initialDraft={adjustmentDraft}
+              onDraftConsumed={() => setAdjustmentDraft(null)}
+              reviewerId={reviewerId}
+            />
+          )}
+          {panel === "history" && (
+            <HistoryPanel
+              onRequestAdjustment={(record, suggestedReason) => {
+                setAdjustmentDraft({ record, suggestedReason });
+                setPanel("approvals");
+              }}
+            />
+          )}
           {panel === "reports" && <ReportPanel />}
           {panel === "devices" && <DevicePanel />}
           {panel === "audit" && <AuditPanel />}

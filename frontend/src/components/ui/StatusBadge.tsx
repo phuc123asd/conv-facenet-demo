@@ -13,6 +13,8 @@ export function StatusBadge({ status, label }: StatusBadgeProps) {
     normalized === "đi muộn" ||
     normalized === "di muon" ||
     normalized === "late" ||
+    normalized === "rejected" ||
+    normalized === "đã từ chối" ||
     normalized === "offline"
   ) {
     statusClass = "late";

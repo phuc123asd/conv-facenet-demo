@@ -1032,6 +1032,73 @@ kbd {
   gap: 8px;
 }
 
+.approval-toolbar {
+  justify-content: space-between;
+  align-items: end;
+}
+
+.approval-toolbar label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.approval-toolbar select {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+  padding: 0 38px 0 12px;
+}
+
+.adjustment-form-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.adjustment-form-grid label:nth-child(2) {
+  grid-column: auto;
+}
+
+.adjustment-form-grid .adjustment-record-field {
+  grid-column: span 2;
+}
+
+.adjustment-form-grid .adjustment-reason-field {
+  grid-column: 1 / -1;
+}
+
+.approval-change {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.approval-change b {
+  color: var(--icon-accent);
+}
+
+.approval-reviewed-at {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.approval-actions button:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
 .management-grid,
 .report-grid,
 .settings-grid {

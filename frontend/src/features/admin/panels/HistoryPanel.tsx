@@ -5,7 +5,11 @@ import { getAttendanceRecords } from "../../../services/attendanceApi";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
 import type { AttendanceRecord } from "../../../types/attendance";
 
-export function HistoryPanel() {
+type HistoryPanelProps = {
+  onRequestAdjustment: (record: AttendanceRecord, suggestedReason?: string) => void;
+};
+
+export function HistoryPanel({ onRequestAdjustment }: HistoryPanelProps) {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -186,10 +190,20 @@ export function HistoryPanel() {
             <span>{formatTime(row.check_out_at)}</span>
             <StatusBadge status={mapStatusLabel(row.status)} />
             <span className="row-actions">
-              <button aria-label={`Sửa ${row.employees?.full_name}`} type="button">
+              <button
+                aria-label={`Sửa ${row.employees?.full_name}`}
+                onClick={() => onRequestAdjustment(row)}
+                title="Tạo yêu cầu sửa công"
+                type="button"
+              >
                 <Edit3 size={16} />
               </button>
-              <button aria-label={`Đánh dấu ${row.employees?.full_name}`} type="button">
+              <button
+                aria-label={`Đánh dấu ${row.employees?.full_name}`}
+                onClick={() => onRequestAdjustment(row, "Bản ghi cần kiểm tra lại")}
+                title="Đánh dấu để duyệt lại"
+                type="button"
+              >
                 <Flag size={16} />
               </button>
             </span>

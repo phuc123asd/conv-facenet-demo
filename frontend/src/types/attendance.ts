@@ -84,6 +84,43 @@ export type AttendanceRecord = {
   } | null;
 };
 
+export type AttendanceAdjustmentStatus = "pending" | "approved" | "rejected";
+
+export type AttendanceAdjustmentRequest = {
+  id: string;
+  attendance_id: string | null;
+  employee_id: string;
+  reason: string;
+  requested_check_in_at: string | null;
+  requested_check_out_at: string | null;
+  status: AttendanceAdjustmentStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  employees?: {
+    id: string;
+    full_name: string;
+    employee_code: string;
+    department: string | null;
+  } | null;
+  attendance_records?: {
+    id: string;
+    attendance_date: string;
+    check_in_at: string | null;
+    check_out_at: string | null;
+    status: string;
+    shift_id: string | null;
+  } | null;
+};
+
+export type AttendanceAdjustmentCreateInput = {
+  attendance_id?: string | null;
+  employee_id: string;
+  reason: string;
+  requested_check_in_at?: string | null;
+  requested_check_out_at?: string | null;
+};
+
 export type AttendanceStats = {
   total_employees: number;
   present_count: number;
